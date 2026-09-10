@@ -1,0 +1,29 @@
+# 作業用ドキュメント（ローカル専用。公開リポには含めない）
+AGENTS.md
+CLAUDE.md
+
+# 環境依存・秘密（送り先・鍵・パス）
+.env
+.env.*
+!.env.example
+config.local.*
+
+# 生成物・ローカル状態（公開台帳＝本文ハッシュ・前回送信の記録）
+out/
+dist/
+build/
+.biidama/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
