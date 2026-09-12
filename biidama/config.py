@@ -14,6 +14,7 @@ from . import BuildError
 class SiteConfig:
     name: str = "biidama"
     url: str = ""
+    icon: str = ""  # static/ の中の画像。ファビコン・OGP 画像・ヘッダーの印に使う（空なら何も出さない）
 
 
 @dataclass
@@ -45,5 +46,9 @@ def load_config(path: str | Path) -> Config:
 
     exclude = [str(x).strip("/").replace("\\", "/") for x in (data.get("exclude") or [])]
     site_raw = data.get("site") or {}
-    site = SiteConfig(name=str(site_raw.get("name", "biidama")), url=str(site_raw.get("url", "")))
+    site = SiteConfig(
+        name=str(site_raw.get("name", "biidama")),
+        url=str(site_raw.get("url", "")),
+        icon=str(site_raw.get("icon") or "").strip().lstrip("/"),
+    )
     return Config(vault=vault, out=out, state_dir=state_dir, exclude=exclude, site=site)

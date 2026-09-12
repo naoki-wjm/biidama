@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import html as html_mod
 import json
+import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -17,6 +19,7 @@ from .features.series import compute_nav
 from .folders import FolderIndex, make_folder_indexes
 from .links import LinkIndex, Node, relative_href, root_prefix
 from .mdext import RenderContext, make_markdown, render_body
+from .tags import TAG_DIR, TagIndex, TagList, make_tag_indexes
 from .vault import Page, scan
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -28,6 +31,7 @@ STATIC_DIR = PACKAGE_DIR.parent / "static"
 class BuildResult:
     pages: list[Page]
     folders: list[FolderIndex]
+    tags: list[TagIndex] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     manifest_path: Path | None = None
     updated: dict[str, dt.date | None] = field(default_factory=dict)  # rel → 表示した更新日（publish が台帳に写す）
@@ -42,7 +46,8 @@ def make_env() -> Environment:
     )
 
 
-RESERVED_PREFIXES = ("static/",)  # 出力側で使う名前。原稿のフォルダ名と衝突させない
+RESERVED_PREFIXES = ("static/", TAG_DIR + "/")  # 出力側で使う名前。原稿のフォルダ名と衝突させない
+RESERVED_FILES = (TAG_DIR + ".html",)
 
 
 def check_out_collisions(nodes: list[Node]) -> None:
@@ -51,8 +56,8 @@ def check_out_collisions(nodes: list[Node]) -> None:
         key = n.out_rel.lower()  # Windows と多くのホスティングは大文字小文字を区別しない
         if key in seen:
             raise BuildError(f"2つのページが同じ出力先になります: {seen[key]} と {n.rel}")
-        if key.startswith(RESERVED_PREFIXES):
-            raise BuildError(f"フォルダ名 static は出力側で使うので原稿には使えません: {n.rel}")
+        if key.startswith(RESERVED_PREFIXES) or key in RESERVED_FILES:
+            raise BuildError(f"フォルダ名・ノート名 static と {TAG_DIR} は出力側で使うので原稿には使えません: {n.rel}")
         seen[key] = n.rel
 
 
@@ -98,6 +103,16 @@ def static_versions() -> dict[str, str]:
             if p.is_file():
                 versions[p.relative_to(STATIC_DIR).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()[:8]
     return versions
+
+
+_TAG_RE = re.compile(r"<[^>]+>")
+_WS_RE = re.compile(r"\s+")
+
+
+def summarize(body_html: str, limit: int = 120) -> str:
+    """OGP の description 用。本文 HTML からタグを剥がして先頭だけ（frontmatter に description があればそちらを使う）。"""
+    text = _WS_RE.sub(" ", html_mod.unescape(_TAG_RE.sub("", body_html))).strip()
+    return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
 def write_text(path: Path, text: str) -> None:
@@ -152,16 +167,31 @@ def build(cfg: Config, *, log=print) -> BuildResult:
         raise BuildError("公開ページ（publish: true）が一枚もありません")
 
     folders, folder_node = make_folder_indexes(pages)
+    tag_indexes, tag_list = make_tag_indexes(pages)
     nodes: list[Node] = [*pages, *folders]
     check_out_collisions(nodes)
-    index = LinkIndex(nodes)
+    index = LinkIndex(nodes)  # タグページは wikilink の解決先にしない
+    tag_node: dict[str, TagIndex] = {t.tag: t for t in tag_indexes}
     navs = compute_nav(pages, index, warnings)
 
     env = make_env()
     page_tpl = env.get_template("page.html")
     folder_tpl = env.get_template("folder.html")
-    site = {"name": cfg.site.name, "url": cfg.site.url}
+    tag_tpl = env.get_template("tag.html")
+    tags_tpl = env.get_template("tags.html")
+    site_url = cfg.site.url.rstrip("/") + "/" if cfg.site.url else ""
     assets = static_versions()
+    icon = cfg.site.icon
+    if icon and not (icon.startswith("static/") and icon[len("static/"):] in assets):
+        warnings.append(f"site.icon の画像が static/ にありません（アイコン無しで進めます）: {icon}")
+        icon = ""
+    site = {
+        "name": cfg.site.name,
+        "url": site_url,
+        "icon": icon,  # ファビコン・OGP 画像・ヘッダーの印
+        "icon_v": assets.get(icon[len("static/"):], "") if icon else "",
+        "has_tags": tag_list is not None,
+    }
 
     ctx = RenderContext(index=index, warnings=warnings)
     md = make_markdown(ctx)
@@ -173,6 +203,21 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     def link(from_node: Node, to: Node | None) -> str | None:
         return relative_href(from_node.out_rel, to.out_rel) if to else None
 
+    def common(node: Node, description: str = "", og_type: str = "website") -> dict:
+        """どの雛型にも渡すもの（OGP の材料を含む）。"""
+        return {
+            "site": site,
+            "assets": assets,
+            "root": root_prefix(node.out_rel),
+            "page": node,
+            "page_url": site_url + node.out_rel if site_url else "",
+            "description": description,
+            "og_type": og_type,
+        }
+
+    def tag_links(node: Node, names: list[str]) -> list[dict]:
+        return [{"name": t, "href": link(node, tag_node.get(t))} for t in names]
+
     # 失敗しうる変換をすべて先に済ませ、成功した時だけ旧出力を消して書き出す
     outputs: list[tuple[str, str]] = []
     updated: dict[str, dt.date | None] = {}
@@ -180,15 +225,13 @@ def build(cfg: Config, *, log=print) -> BuildResult:
         body_html = render_body(md, ctx, p, p.title, p.body)
         nav = navs[p.rel]
         updated[p.rel] = updated_date(p, ledger, today)
+        desc = str(p.frontmatter.get("description") or "").strip() or summarize(body_html)
         html = page_tpl.render(
-            site=site,
-            assets=assets,
-            root=root_prefix(p.out_rel),
-            page=p,
+            **common(p, desc, "article"),
             body=body_html,
             created=p.created.isoformat() if p.created else "",
             updated=updated[p.rel].isoformat() if updated[p.rel] and updated[p.rel] != p.created else "",
-            tags=p.tags,
+            tags=tag_links(p, p.tags),
             crumbs=breadcrumbs(p, folder_node),
             prev={"title": nav.prev.title, "href": link(p, nav.prev)} if nav.prev else None,
             next={"title": nav.next.title, "href": link(p, nav.next)} if nav.next else None,
@@ -197,10 +240,7 @@ def build(cfg: Config, *, log=print) -> BuildResult:
 
     for f in folders:
         html = folder_tpl.render(
-            site=site,
-            assets=assets,
-            root=root_prefix(f.out_rel),
-            page=f,
+            **common(f, f"{f.title} のページ一覧"),
             crumbs=breadcrumbs(f, folder_node),
             pages=[{"title": p.title, "href": link(f, p), "created": p.created} for p in f.pages],
             sections=[
@@ -213,6 +253,21 @@ def build(cfg: Config, *, log=print) -> BuildResult:
             ],
         )
         outputs.append((f.out_rel, html))
+
+    for t in tag_indexes:
+        html = tag_tpl.render(
+            **common(t, f"#{t.tag} のページ {len(t.pages)} 枚"),
+            crumbs=[{"title": tag_list.title, "href": link(t, tag_list)}],
+            pages=[{"title": p.title, "href": link(t, p), "created": p.created} for p in t.pages],
+        )
+        outputs.append((t.out_rel, html))
+    if tag_list is not None:
+        html = tags_tpl.render(
+            **common(tag_list, f"タグ {len(tag_indexes)} 種"),
+            crumbs=[],
+            tags=[{"name": t.tag, "href": link(tag_list, t), "count": len(t.pages)} for t in tag_indexes],
+        )
+        outputs.append((tag_list.out_rel, html))
 
     try:
         if cfg.out.exists():
@@ -233,11 +288,13 @@ def build(cfg: Config, *, log=print) -> BuildResult:
             {"src": p.rel + ".md", "out": p.out_rel, "title": p.title, "hash": p.body_hash()}
             for p in pages
         ]
-        + [{"src": None, "out": f.out_rel, "title": f.title, "hash": None} for f in folders],
+        + [{"src": None, "out": f.out_rel, "title": f.title, "hash": None} for f in folders]
+        + [{"src": None, "out": t.out_rel, "title": t.title, "hash": None} for t in tag_indexes]
+        + ([{"src": None, "out": tag_list.out_rel, "title": tag_list.title, "hash": None}] if tag_list else []),
     }
     cfg.state_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = cfg.state_dir / "manifest.json"
     write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=1))
 
-    log(f"ページ {len(pages)} 枚、フォルダ索引 {len(folders)} 枚 → {cfg.out}")
-    return BuildResult(pages=pages, folders=folders, warnings=warnings, manifest_path=manifest_path, updated=updated)
+    log(f"ページ {len(pages)} 枚、フォルダ索引 {len(folders)} 枚、タグ {len(tag_indexes)} 種 → {cfg.out}")
+    return BuildResult(pages=pages, folders=folders, tags=tag_indexes, warnings=warnings, manifest_path=manifest_path, updated=updated)

@@ -10,7 +10,7 @@
 {% endif %}
 {% if tags %}
 <p class="page-meta page-tags">
-{% for t in tags %}<span class="tag">#{{ t }}</span> {% endfor %}
+{% for t in tags %}{% if t.href %}<a class="tag" href="{{ t.href }}">#{{ t.name }}</a>{% else %}<span class="tag">#{{ t.name }}</span>{% endif %} {% endfor %}
 </p>
 {% endif %}
 <div class="page-body">

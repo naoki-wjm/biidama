@@ -1,5 +1,6 @@
 ---
 publish: true
+description: 記事B の手書きの説明（OGP に出る）
 created: 2026-01-05
 modified: 2026-01-05
 tags: 雑記

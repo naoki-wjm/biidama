@@ -383,10 +383,10 @@ def make_markdown(ctx: RenderContext) -> markdown.Markdown:
         # sane_lists: 種類の違うリスト（- と 1.）を一つに溶かさない（Obsidian と同じ）
         extensions=["tables", "nl2br", "sane_lists", "pymdownx.highlight", "pymdownx.superfences", BiidamaExtension(ctx)],
         extension_configs={
-            # 色付けはしない（pytest 経由で Pygments が入っていても出力を変えない）。
-            # 言語名は class="language-xxx" に残すので、後から足せる
-            "pymdownx.highlight": {"use_pygments": False, "css_class": ""},
-            "pymdownx.superfences": {"css_class": "", "custom_fences": []},
+            # 色付けは Pygments（依存に固定）。色は static/pygments.css（ライト default・ダーク github-dark）。
+            # 言語が無い・知らない言語のコード枠は色なしで、枠だけ同じ見た目
+            "pymdownx.highlight": {"use_pygments": True, "css_class": "highlight", "guess_lang": False, "auto_title": True},  # auto_title: 言語名を枠の上に
+            "pymdownx.superfences": {"css_class": "highlight", "custom_fences": []},
         },
         output_format="html",
     )
@@ -397,4 +397,6 @@ def render_body(md: markdown.Markdown, ctx: RenderContext, page: Node, title: st
     ctx.title = title
     ctx.seen_ids = set()
     md.reset()
-    return md.convert(body)
+    html = md.convert(body)
+    # 言語の無いコード枠には札を付けない（auto_title は "Text Only" を付けてしまう）
+    return html.replace('<div class="highlight"><span class="filename">Text Only</span>', '<div class="highlight">')

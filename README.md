@@ -11,7 +11,7 @@ Obsidian の保管庫（黒曜石）から、公開と決めたページだけ�
 
 ## 状態
 
-2026-09 時点で `build`（保管庫 → 静的 HTML）と `publish`（変わったファイルだけ送信）・`prune`（抜け殻の掃除）が動きます。lightbox（`<a data-lightbox="組" data-title="題"><img></a>` の lightbox2 互換記法）と playlist（`<div class="playlist">` の中に `<audio controls src data-title data-artist>` を並べる）は入っています。タグページはこれからです。
+2026-09 時点で `build`（保管庫 → 静的 HTML）と `publish`（変わったファイルだけ送信）・`prune`（抜け殻の掃除）が動きます。lightbox（`<a data-lightbox="組" data-title="題"><img></a>` の lightbox2 互換記法）・playlist（`<div class="playlist">` の中に `<audio controls src data-title data-artist>` を並べる）・タグページ（`タグ.html` と `タグ/<名前>.html` を自動生成。原稿側で `タグ` の名前は予約）・OGP（frontmatter の `description`、無ければ本文の先頭。設定の `site.icon` に `static/` の中の画像を書けば OGP 画像・ファビコン・ヘッダーの印にも使う。絵はリポに入れない）・コード枠の色付け（Pygments）・読者のテーマ／書体切替と「上へ戻る」（`static/site.js`）が入っています。
 
 ## 使い方
 
@@ -49,9 +49,18 @@ biidama publish -c config.local.yml             # 変わったファイルだけ
 
 ```
 biidama/          … 本体（config・vault・links・mdext・folders・build・publish・cli）
+biidama/tags.py   … タグページの自動生成
 biidama/features/ … 分離した機能（ruby・series）
-templates/        … jinja2 雛型（base・page・folder）
-static/           … 公開側の CSS と lightbox.js・playlist.js。そのまま out/static/ に複製
+templates/        … jinja2 雛型（base・page・folder・tag・tags）
+static/           … 公開側の CSS（style.css・pygments.css）と site.js・lightbox.js・playlist.js。そのまま out/static/ に複製
+
+Pygments の CSS を作り直すとき（色を変えたい時だけ）:
+
+```
+python -c "from pygments.formatters import HtmlFormatter as F; print(F(style='default').get_style_defs('.highlight'))"
+```
+
+ライトは `default`、ダークは `github-dark` を `:root[data-theme="dark"] .highlight` と `@media (prefers-color-scheme: dark)` の `:root:not([data-theme="light"]) .highlight` の前置きで並べています（`.hll` と枠自体の背景は落とす）。
 tests/samples/    … 合成の試験片と期待 HTML（黄金テスト）
 tests/            … 止まるべき所で止まることの確認
 ```

@@ -17,5 +17,7 @@ exclude:
 site:
   # 見出しとタブに出るサイト名
   name: サイト名
-  # サイトの URL（末尾スラッシュ）。今は記録用で、出力には使わない
+  # サイトの URL（末尾スラッシュ）。OGP の og:url と og:image に使う
   url: https://example.com/
+  # サイトの絵（static/ の中に置く。ファビコン・OGP 画像・ヘッダーの印。正方形 512px の PNG が目安）。無ければ行ごと消す
+  icon: static/icon.png

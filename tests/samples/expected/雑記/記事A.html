@@ -4,13 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>記事A - 見本サイト</title>
-<link rel="stylesheet" href="../static/style.css?v=54143ae1">
+<meta name="description" content="ファイル名と同じ H1 は落ちる。段落の中の 単改行は改行になる。 二つ目 二つ目 同名見出しは -1 が付く。 code とルビ(るび)の見出し Callout 注意の題 半角スペースから始まる続き行。 Note 題が空なら種別名。 二…">
+<meta property="og:title" content="記事A">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="見本サイト">
+<meta property="og:description" content="ファイル名と同じ H1 は落ちる。段落の中の 単改行は改行になる。 二つ目 二つ目 同名見出しは -1 が付く。 code とルビ(るび)の見出し Callout 注意の題 半角スペースから始まる続き行。 Note 題が空なら種別名。 二…">
+<meta property="og:url" content="https://example.com/雑記/記事A.html">
+<link rel="stylesheet" href="../static/style.css?v=ee993d89">
+<link rel="stylesheet" href="../static/pygments.css?v=3ba2a7c4">
+<script src="../static/site.js?v=d75b4237"></script>
 <script src="../static/lightbox.js?v=49c3e8ce" defer></script>
 <script src="../static/playlist.js?v=eab593db" defer></script>
 </head>
 <body>
 <header class="site-header">
 <a class="site-name" href="../index.html">見本サイト</a>
+<div class="prefs" hidden></div>
 </header>
 <nav class="breadcrumb breadcrumb-top" aria-label="場所">
 <ol>
@@ -24,7 +33,7 @@
 <p class="page-meta page-dates">
 <span class="date">作成 <time datetime="2026-01-03">2026-01-03</time></span><span class="date">更新 <time datetime="2026-03-01">2026-03-01</time></span></p>
 <p class="page-meta page-tags">
-<span class="tag">#雑記</span> <span class="tag">#見本</span> </p>
+<a class="tag" href="../タグ/雑記.html">#雑記</a> <a class="tag" href="../タグ/見本.html">#見本</a> </p>
 <div class="page-body">
 <p>ファイル名と同じ H1 は落ちる。段落の中の<br>
 単改行は改行になる。</p>
@@ -57,7 +66,8 @@
 </blockquote>
 <blockquote>
 <p>引用の中のコード枠。</p>
-<pre><code class="language-JavaScript">let a = 10;</code></pre>
+<div class="highlight"><span class="filename">JavaScript</span><pre><span></span><code><span class="kd">let</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">10</span><span class="p">;</span>
+</code></pre></div>
 <p>続きの文。</p>
 </blockquote>
 <h2 id="表">表</h2>
@@ -80,8 +90,10 @@
 </tbody>
 </table>
 <h2 id="コード">コード</h2>
-<pre><code class="language-python">print("言語つき")</code></pre>
-<pre><code>言語なし</code></pre>
+<div class="highlight"><span class="filename">Python</span><pre><span></span><code><span class="nb">print</span><span class="p">(</span><span class="s2">"言語つき"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>言語なし
+</code></pre></div>
 <ul>
 <li>リストの一行目<br>
   続き行</li>
@@ -112,6 +124,7 @@
 
 <footer class="site-footer">
 <a href="../index.html">見本サイト</a>
+<a class="footer-tags" href="../タグ.html">タグ一覧</a>
 <span class="made-with">made with <a href="https://github.com/naoki-wjm/biidama" rel="noopener">biidama</a></span>
 </footer>
 </body>

@@ -39,3 +39,6 @@ tests/samples/state/
 # 査読の依頼文と結果（ローカル作業用。公開リポに含めない）
 査読依頼*.md
 査読/
+
+# サイト固有の絵（わーさんの作。公開リポ・MIT には入れない。static/icon.png を置くと自動で使う）
+static/icon.png

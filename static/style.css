@@ -1,37 +1,53 @@
-/* biidama 薄い CSS。本文幅・ルビ・Callout・メディアの幅制限だけ。デザインは未決 */
+/* biidama 公開側 CSS。色は「縹（はなだ）B-1 半」（2026-09-12 わーさん決定）。
+   読者の好みは <html data-theme="light|dark"> と data-font="mincho"（static/site.js が付ける）で上書きする */
 
 :root {
   color-scheme: light dark;
-  --fg: #222;
-  --bg: #fdfdfb;
-  --muted: #666;
-  --line: #ddd;
-  --link: #1a5fb4;
-  --callout-bg: #f2f4f8;
-  --callout-line: #9aa7c2;
+  --fg: #1f2429;
+  --bg: #fafcfe;
+  --muted: #66707a;
+  --line: #d5dfe8;
+  --link: #2480b8;
+  --accent: #4aa0d2;   /* 見出しの印・Callout の縁・playlist のボタン。リンクより一さじ淡い */
+  --callout-bg: #e4f0fa;
   --warning-bg: #fff6e5;
   --warning-line: #e0a040;
-  --code-bg: #f4f4f2;
+  --code-bg: #eff4f8;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --fg: #e6e6e3;
-    --bg: #1c1c1e;
-    --muted: #a0a0a0;
-    --line: #3a3a3c;
-    --link: #8ab4f8;
-    --callout-bg: #26292f;
-    --callout-line: #5b6a8c;
+  :root:not([data-theme="light"]) {
+    --fg: #e4e8ee;
+    --bg: #161b20;
+    --muted: #98a5b1;
+    --line: #303a44;
+    --link: #8ccbef;
+    --accent: #93cdf0;
+    --callout-bg: #1f2c38;
     --warning-bg: #332a1a;
     --warning-line: #b98430;
-    --code-bg: #2a2a2d;
+    --code-bg: #212a32;
   }
 }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --fg: #e4e8ee;
+  --bg: #161b20;
+  --muted: #98a5b1;
+  --line: #303a44;
+  --link: #8ccbef;
+  --accent: #93cdf0;
+  --callout-bg: #1f2c38;
+  --warning-bg: #332a1a;
+  --warning-line: #b98430;
+  --code-bg: #212a32;
+}
+:root[data-theme="light"] { color-scheme: light; }
 
 :root {
-  /* 書体は変数にしておく（後で明朝への切り替えを足す時はここを差し替える） */
   --font-body: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
+  --font-mincho: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "BIZ UDMincho", serif;
 }
+:root[data-font="mincho"] { --font-body: var(--font-mincho); }
 html {
   font-family: var(--font-body);
   font-size: 16px;
@@ -53,8 +69,13 @@ main, .site-header, .breadcrumb, .site-footer {
 }
 a { color: var(--link); }
 [hidden] { display: none !important; } /* display を指定した箱にも hidden 属性を効かせる（playlist の音量つまみなど） */
-.site-header { padding: 1rem 0; border-bottom: 1px solid var(--line); }
-.site-name { font-weight: bold; text-decoration: none; }
+.site-header { padding: 1rem 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.site-name { font-weight: bold; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4em; }
+.site-icon { width: 24px; height: 24px; border-radius: 4px; }
+/* 読者の好み（static/site.js が組み立てる） */
+.prefs { display: flex; gap: 0.4rem; }
+.pref-btn { font: inherit; font-size: 0.85rem; line-height: 1; padding: 0.35em 0.6em; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+.pref-btn:active { color: var(--accent); border-color: var(--accent); }
 .breadcrumb ol { list-style: none; padding: 0; margin: 0.5rem 0; font-size: 0.9rem; color: var(--muted); }
 .breadcrumb li { display: inline; }
 .breadcrumb li + li::before { content: " / "; }
@@ -64,14 +85,16 @@ a { color: var(--link); }
 .page-body h1, .page-body h2, .page-body h3, .page-body h4, .page-body h5, .page-body h6 { line-height: 1.5; margin: 2em 0 0.8em; }
 .page-body h1 { font-size: 1.4rem; padding-bottom: 0.3em; border-bottom: 2px solid var(--fg); }
 .page-body h2 { font-size: 1.25rem; padding-bottom: 0.2em; border-bottom: 1px solid var(--line); }
-.page-body h3 { font-size: 1.1rem; padding-left: 0.6em; border-left: 4px solid var(--callout-line); }
+.page-body h3 { font-size: 1.1rem; padding-left: 0.6em; border-left: 4px solid var(--accent); }
 .page-body h4 { font-size: 1.05rem; }
-.page-body h4::before { content: ""; display: inline-block; width: 0.6em; height: 0.6em; margin-right: 0.4em; background: var(--callout-line); vertical-align: 0.05em; }
+.page-body h4::before { content: ""; display: inline-block; width: 0.6em; height: 0.6em; margin-right: 0.4em; background: var(--accent); vertical-align: 0.05em; }
 .page-body h5, .page-body h6 { font-size: 1rem; color: var(--muted); }
 .page-body h5::before, .page-body h6::before { content: ""; display: inline-block; width: 0.4em; height: 0.4em; margin-right: 0.4em; border: 1px solid var(--muted); vertical-align: 0.15em; }
 .page-meta { color: var(--muted); font-size: 0.85rem; margin: 0.2em 0; }
 .page-meta .date + .date { margin-left: 0.8em; }
 .page-meta .tag { margin-right: 0.5em; }
+a.tag { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
+a.tag:hover { color: var(--link); border-bottom-color: var(--link); }
 .page-body p { margin: 0 0 1em; }
 /* 幅は画面に収める。height="18" のような原稿側の指定は殺さない（width と height の両方がある時だけ比率を守る） */
 .page-body img, .page-body video, .page-body audio, .page-body iframe { max-width: 100%; }
@@ -79,21 +102,27 @@ a { color: var(--link); }
 .page-body iframe { aspect-ratio: 16 / 9; width: 100%; }
 .page-body table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; }
 .page-body th, .page-body td { border: 1px solid var(--line); padding: 0.2em 0.6em; }
-.page-body pre { background: var(--code-bg); padding: 0.8em; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
-.page-body code { font-family: monospace; font-size: 0.9em; }
-.page-body :not(pre) > code { background: var(--code-bg); padding: 0 0.3em; }
+.page-body pre { background: var(--code-bg); padding: 0.8em; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 4px; }
+.page-body .highlight { margin: 0 0 1em; }
+.page-body .highlight pre { margin: 0; }
+/* 言語名（pymdownx.highlight の auto_title）。枠の上に小さな札 */
+.page-body .highlight .filename { display: block; font-size: 0.75rem; line-height: 1.6; color: var(--muted); background: var(--code-bg); padding: 0.2em 0.8em 0; border-bottom: 1px solid var(--line); border-radius: 4px 4px 0 0; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.page-body .highlight .filename + pre { border-radius: 0 0 4px 4px; }
+.page-body code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
+.page-body :not(pre) > code { background: var(--code-bg); padding: 0 0.3em; border-radius: 3px; }
 .page-body blockquote { margin: 1em 0; padding: 0 1em; border-left: 3px solid var(--line); color: var(--muted); }
 .page-body hr { border: 0; border-top: 1px solid var(--line); margin: 2em 0; }
 ruby rt { font-size: 0.5em; }
 .unresolved-link { border-bottom: 1px dotted var(--muted); }
 
-/* Callout */
+/* Callout（曇り硝子） */
 .callout {
   margin: 1em 0;
   padding: 0.6em 1em;
-  border-left: 3px solid var(--callout-line);
+  border-left: 3px solid var(--accent);
   background: var(--callout-bg);
   color: var(--fg);
+  border-radius: 0 4px 4px 0;
 }
 .callout-title, .callout > summary { font-weight: bold; margin: 0 0 0.4em; }
 .callout > summary { cursor: pointer; }
@@ -105,11 +134,17 @@ ruby rt { font-size: 0.5em; }
 .series-nav-next { text-align: right; }
 .series-nav small { color: var(--muted); }
 
-/* フォルダ索引 */
+/* フォルダ索引・タグ索引 */
 .page-list { padding-left: 1.2em; }
 .page-list time { color: var(--muted); font-size: 0.85em; margin-left: 0.5em; }
+.tag-cloud { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4em 1em; }
+.tag-cloud .count { color: var(--muted); font-size: 0.8em; }
+
+/* 上へ戻る（static/site.js が置く） */
+.to-top { position: fixed; right: 1rem; bottom: 1.2rem; width: 2.6rem; height: 2.6rem; border-radius: 50%; background: var(--accent); color: var(--bg); text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; opacity: 0.85; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
 
 .site-footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
+.site-footer .footer-tags { margin-left: 1em; }
 .site-footer .made-with { float: right; font-size: 0.75rem; }
 .site-footer .made-with a { color: var(--muted); }
 .breadcrumb-bottom + .site-footer { margin-top: 0.5rem; }
@@ -133,29 +168,31 @@ ruby rt { font-size: 0.5em; }
 .pl-artist { font-size: 0.78em; color: var(--muted); margin-top: 2px; }
 .pl-seekbar-wrap { padding: 4px 16px; }
 .pl-seekbar { width: 100%; height: 6px; background: var(--line); border-radius: 3px; cursor: pointer; position: relative; overflow: hidden; }
-.pl-seekbar-fill { height: 100%; background: var(--link); border-radius: 3px; transition: width 0.15s linear; }
+.pl-seekbar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.15s linear; }
 .pl-time { display: flex; justify-content: space-between; font-size: 0.68em; color: var(--muted); margin-top: 2px; font-family: monospace; }
 .pl-controls { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 4px 16px 8px; }
 .pl-btn { background: none; border: none; cursor: pointer; padding: 6px; margin: 0; line-height: 1; color: var(--muted); display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
-.pl-btn.active { color: var(--link); }
+.pl-btn.active { color: var(--accent); }
 .pl-btn-prev, .pl-btn-next { color: var(--fg); }
-.pl-btn-play { width: 44px; height: 44px; border-radius: 50%; background: var(--link); color: var(--bg); padding: 0; }
+.pl-btn-play { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: var(--bg); padding: 0; }
 .pl-volume { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 16px 10px; color: var(--muted); }
-.pl-volume-slider { width: 90px; accent-color: var(--link); cursor: pointer; }
+.pl-volume-slider { width: 90px; accent-color: var(--accent); cursor: pointer; }
 .pl-error { text-align: center; font-size: 0.75em; color: #c44; padding: 0 16px; }
 .pl-error:not(:empty) { padding-bottom: 6px; }
 .pl-list { border-top: 1px solid var(--line); max-height: 220px; overflow-y: auto; }
 .pl-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; cursor: pointer; border-left: 3px solid transparent; transition: background 0.2s, border-color 0.2s; }
-.pl-item.current { background: rgba(128, 128, 128, 0.14); border-left-color: var(--link); }
+.pl-item.current { background: rgba(128, 128, 128, 0.14); border-left-color: var(--accent); }
 .pl-item-num { font-size: 0.72em; color: var(--muted); min-width: 1.5em; text-align: right; font-family: monospace; }
-.pl-item.current .pl-item-num { color: var(--link); }
+.pl-item.current .pl-item-num { color: var(--accent); }
 .pl-item-info { flex: 1; min-width: 0; }
 .pl-item-title { font-size: 0.88em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-item.current .pl-item-title { font-weight: bold; }
 .pl-item-artist { font-size: 0.7em; color: var(--muted); }
 /* hover の色はマウスのある環境だけ（iPhone はタップ後も :hover が残り、押された状態と見分けがつかなくなる） */
 @media (hover: hover) {
-  .pl-btn:hover { color: var(--link); }
+  .pref-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .to-top:hover { opacity: 1; }
+  .pl-btn:hover { color: var(--accent); }
   .pl-btn-play:hover { opacity: 0.85; color: var(--bg); }
   .pl-item:hover { background: rgba(128, 128, 128, 0.08); }
 }
