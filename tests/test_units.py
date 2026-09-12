@@ -175,3 +175,30 @@ def test_updated_date_rules(tmp_path):
     assert updated_date(page, same, today) == dt.date(2026, 3, 3)  # 一致 → 台帳の日付
     changed = {"x.md": {"hash": "0" * 64, "updated": "2026-03-03"}}
     assert updated_date(page, changed, today) == today  # 本文が変わった → 今日
+
+
+def test_out_dir_guard(tmp_path):
+    from biidama.build import check_out_dir
+
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "index.md").write_text(PUB + "x", encoding="utf-8")
+
+    def cfg(out):
+        return Config(vault=vault, out=out, state_dir=tmp_path / "state", site=SiteConfig(name="t"))
+
+    with pytest.raises(BuildError, match="保管庫"):
+        check_out_dir(cfg(vault))  # 保管庫そのもの
+    with pytest.raises(BuildError, match="含んで"):
+        check_out_dir(cfg(tmp_path))  # 保管庫の親
+    with pytest.raises(BuildError, match="保管庫の中"):
+        check_out_dir(cfg(vault / "out"))  # 保管庫の中
+    foreign = tmp_path / "foreign"
+    foreign.mkdir()
+    (foreign / "大事.txt").write_text("x", encoding="utf-8")
+    with pytest.raises(BuildError, match="biidama 以外"):
+        check_out_dir(cfg(foreign))  # 他人の物が入っている
+    check_out_dir(cfg(tmp_path / "fresh"))  # 無い場所は可
+    res = build(cfg(tmp_path / "fresh"), log=lambda *_: None)
+    check_out_dir(cfg(tmp_path / "fresh"))  # 自分の出力なら二度目も可
+    assert (tmp_path / "fresh" / ".biidama-out").exists() and res.pages

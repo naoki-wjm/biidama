@@ -61,6 +61,25 @@ def breadcrumbs(node: Node, folder_node: dict[str, Node]) -> list[dict]:
     return crumbs
 
 
+def check_out_dir(cfg: Config) -> None:
+    """出力先は build のたびに消して作り直すので、消してはいけない場所を指していたら止める。"""
+    out = cfg.out.resolve()
+    vault = cfg.vault.resolve()
+    forbidden = {vault, Path.home().resolve(), Path(out.anchor)}
+    if out in forbidden:
+        raise BuildError(f"出力先に保管庫・ホーム・ドライブの根は指定できません: {out}")
+    if vault == out or vault.is_relative_to(out):
+        raise BuildError(f"出力先が保管庫を含んでいます（消えます）: {out}")
+    if out.is_relative_to(vault):
+        raise BuildError(f"出力先が保管庫の中です: {out}")
+    if out.exists() and not out.is_dir():
+        raise BuildError(f"出力先がフォルダではありません: {out}")
+    if out.exists() and any(out.iterdir()) and not (out / ".biidama-out").exists():
+        raise BuildError(
+            f"出力先に biidama 以外のものが入っています。空にするか別の場所を指定してください: {out}"
+        )
+
+
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8", newline="\n")
@@ -128,9 +147,11 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     ledger = load_ledger(cfg)
     today = dt.date.today()
 
+    check_out_dir(cfg)
     if cfg.out.exists():
         shutil.rmtree(cfg.out)
     cfg.out.mkdir(parents=True)
+    (cfg.out / ".biidama-out").write_text("biidama build の出力先の目印。次の build でこのフォルダは消して作り直されます。\n", encoding="utf-8")
 
     def link(from_node: Node, to: Node | None) -> str | None:
         return relative_href(from_node.out_rel, to.out_rel) if to else None
