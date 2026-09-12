@@ -11,7 +11,7 @@ Obsidian の保管庫（黒曜石）から、公開と決めたページだけ�
 
 ## 状態
 
-2026-09 時点で `build`（保管庫 → 静的 HTML）が動きます。`publish`（送信）と `prune`（遠隔の掃除）はこれからです。
+2026-09 時点で `build`（保管庫 → 静的 HTML）と `publish`（変わったファイルだけ送信）・`prune`（抜け殻の掃除）が動きます。lightbox・playlist・タグページはこれからです。
 
 ## 使い方
 
@@ -20,12 +20,22 @@ python -m venv .venv
 .venv/Scripts/pip install -r requirements.txt -e .
 cp config.example.yml config.local.yml   # 保管庫の場所・除外フォルダ・サイト名を書く
 biidama build -c config.local.yml        # out/ に HTML が出る
+cp .env.example .env                     # 送り先（ssh の接続先と遠隔のフォルダ）を書く
+biidama publish -c config.local.yml --dry-run   # 何を送るか見るだけ
+biidama publish -c config.local.yml             # 変わったファイルだけ送る
 ```
 
 - 出力の URL は保管庫の相対パスそのまま＋ `.html`（`雑録/○○.html`）
 - 同名ノートの無いフォルダには索引ページを自動で作ります（`雑記.html` など）
 - 止まるのは、公開ページの frontmatter が壊れている・2ページが同じ出力先になる・basename が複数一致する・`![[埋め込み]]` や `#^ブロック参照` に出会った時。リンク切れや非公開ページへのリンクは注意を出して続けます
-- `.biidama/manifest.json` に「ページ一覧・出力先・本文ハッシュ」を書き出します。あとで `publish` がこれを読みます
+- `.biidama/manifest.json` に「ページ一覧・出力先・本文ハッシュ」を書き出します
+
+### publish と prune
+
+- `publish` は build したあと、前回の台帳（`.biidama/ledger.json`）と中身のハッシュを比べ、**変わったファイルだけ**を tar に束ねて ssh 一本で送り先へ上書きします。scp をファイルごとに呼ばない（速い・日本語ファイル名でも転ばない）
+- 送れた時だけ台帳を書きます。更新日は台帳と本文ハッシュで決まります（一致→台帳の日付、変わった→今日、初回→`modified`）
+- 送ったあと、台帳にあって今回の出力に無いファイル（消したページ・改名の抜け殻）を一覧し、**その場で `y/n` を聞いてから**消します。`n` なら残り、台帳にも残ります。単独の `prune` も同じことをします
+- 台帳に無いファイル（手で置いた `.htaccess` など）には触りません
 
 ### 原稿側の約束
 
@@ -38,7 +48,7 @@ biidama build -c config.local.yml        # out/ に HTML が出る
 ## 構成
 
 ```
-biidama/          … 本体（config・vault・links・mdext・folders・build・cli）
+biidama/          … 本体（config・vault・links・mdext・folders・build・publish・cli）
 biidama/features/ … 分離した機能（ruby・series）
 templates/        … jinja2 雛型（base・page・folder）
 static/           … 公開側の CSS。そのまま out/static/ に複製

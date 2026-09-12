@@ -29,6 +29,7 @@ class BuildResult:
     folders: list[FolderIndex]
     warnings: list[str] = field(default_factory=list)
     manifest_path: Path | None = None
+    updated: dict[str, dt.date | None] = field(default_factory=dict)  # rel → 表示した更新日（publish が台帳に写す）
 
 
 def make_env() -> Environment:
@@ -162,16 +163,18 @@ def build(cfg: Config, *, log=print) -> BuildResult:
 
     # 失敗しうる変換をすべて先に済ませ、成功した時だけ旧出力を消して書き出す
     outputs: list[tuple[str, str]] = []
+    updated: dict[str, dt.date | None] = {}
     for p in pages:
         body_html = render_body(md, ctx, p, p.title, p.body)
         nav = navs[p.rel]
+        updated[p.rel] = updated_date(p, ledger, today)
         html = page_tpl.render(
             site=site,
             root=root_prefix(p.out_rel),
             page=p,
             body=body_html,
             created=p.created.isoformat() if p.created else "",
-            updated=(lambda u: u.isoformat() if u and u != p.created else "")(updated_date(p, ledger, today)),
+            updated=updated[p.rel].isoformat() if updated[p.rel] and updated[p.rel] != p.created else "",
             tags=p.tags,
             crumbs=breadcrumbs(p, folder_node),
             prev={"title": nav.prev.title, "href": link(p, nav.prev)} if nav.prev else None,
@@ -223,4 +226,4 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=1))
 
     log(f"ページ {len(pages)} 枚、フォルダ索引 {len(folders)} 枚 → {cfg.out}")
-    return BuildResult(pages=pages, folders=folders, warnings=warnings, manifest_path=manifest_path)
+    return BuildResult(pages=pages, folders=folders, warnings=warnings, manifest_path=manifest_path, updated=updated)
