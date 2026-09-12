@@ -15,6 +15,8 @@ class SiteConfig:
     name: str = "biidama"
     url: str = ""
     icon: str = ""  # static/ の中の画像。ファビコン・OGP 画像・ヘッダーの印に使う（空なら何も出さない）
+    theme_color: str = ""  # <meta name="theme-color">（ブラウザの枠の色）。空なら出さない
+    head_extra: list[str] = field(default_factory=list)  # head にそのまま入れる行（作者宣言など、道具に書きたくないもの）
 
 
 @dataclass
@@ -50,5 +52,7 @@ def load_config(path: str | Path) -> Config:
         name=str(site_raw.get("name", "biidama")),
         url=str(site_raw.get("url", "")),
         icon=str(site_raw.get("icon") or "").strip().lstrip("/"),
+        theme_color=str(site_raw.get("theme_color") or "").strip(),
+        head_extra=[str(x) for x in (site_raw.get("head_extra") or []) if str(x).strip()],
     )
     return Config(vault=vault, out=out, state_dir=state_dir, exclude=exclude, site=site)

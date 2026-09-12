@@ -13,6 +13,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+{% if site.theme_color %}
+<meta name="theme-color" content="{{ site.theme_color }}">
+{% endif %}
 <title>{{ full_title }}</title>
 {% if description %}
 <meta name="description" content="{{ description }}">
@@ -38,6 +41,9 @@
 <script src="{{ root }}static/site.js?v={{ assets.get('site.js', '') }}"></script>
 <script src="{{ root }}static/lightbox.js?v={{ assets.get('lightbox.js', '') }}" defer></script>
 <script src="{{ root }}static/playlist.js?v={{ assets.get('playlist.js', '') }}" defer></script>
+{% for line in site.head_extra %}
+{{ line|safe }}
+{% endfor %}
 </head>
 <body>
 <header class="site-header">

@@ -14,17 +14,17 @@ PUB = "---\npublish: true\ncreated: 2026-01-01\n---\n"
 TAGGED = "---\npublish: true\ncreated: 2026-01-0{d}\ntags:\n  - {tag}\n---\n"
 
 
-def make_vault(tmp_path: Path, files: dict[str, str], url: str = "", icon: str = "") -> Config:
+def make_vault(tmp_path: Path, files: dict[str, str], url: str = "", icon: str = "", **site) -> Config:
     vault = tmp_path / "vault"
     for rel, text in files.items():
         p = vault / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
-    return Config(vault=vault, out=tmp_path / "out", state_dir=tmp_path / "state", site=SiteConfig(name="t", url=url, icon=icon))
+    return Config(vault=vault, out=tmp_path / "out", state_dir=tmp_path / "state", site=SiteConfig(name="t", url=url, icon=icon, **site))
 
 
-def run(tmp_path, files, url="", icon=""):
-    cfg = make_vault(tmp_path, files, url, icon)
+def run(tmp_path, files, url="", icon="", **site):
+    cfg = make_vault(tmp_path, files, url, icon, **site)
     return cfg, build(cfg, log=lambda *_: None)
 
 
@@ -122,6 +122,16 @@ def test_head_has_reader_prefs_and_static(tmp_path):
     assert '<link rel="stylesheet" href="static/pygments.css?v=' in html
     assert '<div class="prefs" hidden></div>' in html
     assert "og:image" not in html and 'rel="icon"' not in html  # site.icon を書かなければ何も出ない
+
+
+def test_theme_color_and_head_extra(tmp_path):
+    line = '<meta name="fediverse:creator" content="@x@example.social">'
+    cfg, _ = run(tmp_path, {"index.md": PUB + "入口", "a/b.md": PUB + "b"}, theme_color="#4aa0d2", head_extra=[line])
+    html = read(cfg, "a/b.html")
+    assert '<meta name="theme-color" content="#4aa0d2">' in html
+    assert line in html and html.index(line) < html.index("</head>")  # そのまま、エスケープせずに head の中へ
+    cfg2, _ = run(tmp_path / "2", {"index.md": PUB + "入口"})
+    assert "theme-color" not in read(cfg2, "index.html")
 
 
 def test_icon_must_exist_in_static(tmp_path):

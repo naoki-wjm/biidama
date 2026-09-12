@@ -21,3 +21,8 @@ site:
   url: https://example.com/
   # サイトの絵（static/ の中に置く。ファビコン・OGP 画像・ヘッダーの印。正方形 512px の PNG が目安）。無ければ行ごと消す
   icon: static/icon.png
+  # ブラウザの枠の色（<meta name="theme-color">）。無ければ行ごと消す
+  theme_color: "#4aa0d2"
+  # head にそのまま入れる行。作者宣言や検証用の meta など、道具に書きたくないものはここに
+  head_extra:
+    - '<meta name="fediverse:creator" content="@you@example.social">'

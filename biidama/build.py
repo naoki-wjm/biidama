@@ -190,6 +190,8 @@ def build(cfg: Config, *, log=print) -> BuildResult:
         "url": site_url,
         "icon": icon,  # ファビコン・OGP 画像・ヘッダーの印
         "icon_v": assets.get(icon[len("static/"):], "") if icon else "",
+        "theme_color": cfg.site.theme_color,
+        "head_extra": cfg.site.head_extra,
         "has_tags": tag_list is not None,
     }
 
