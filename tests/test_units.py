@@ -124,6 +124,27 @@ def test_render_file_keeps_raw_html(tmp_path):
     assert '<a href="https://example.com/y">https://example.com/y</a>。' in html
 
 
+def test_render_file_keeps_playlist_block(tmp_path):
+    # 案C: div.playlist の中の audio 群は属性ごと素通り。単改行が <br> にならず、段落にも包まれない
+    src = tmp_path / "曲.md"
+    src.write_text(
+        "---\ncreated: 2026-01-01\n---\n前\n\n"
+        '<div class="playlist">\n'
+        '<audio controls src="https://x/01.mp3" data-title="一曲目" data-artist="作者"></audio>\n'
+        '<audio controls src="https://x/02.mp3"></audio>\n'
+        "</div>\n\n後\n",
+        encoding="utf-8",
+    )
+    html = render_file(src)
+    assert (
+        '<div class="playlist">\n'
+        '<audio controls src="https://x/01.mp3" data-title="一曲目" data-artist="作者"></audio>\n'
+        '<audio controls src="https://x/02.mp3"></audio>\n'
+        "</div>"
+    ) in html
+    assert "<br" not in html and "<p><div" not in html
+
+
 def test_h1_dedupe_uses_filename(tmp_path):
     res = run(tmp_path, {"index.md": PUB + "ok", "題名.md": PUB + "# 題名\n\n本文\n\n# 別の見出し"})
     html = (res.pages[0].src.parent.parent / "out" / "題名.html").read_text(encoding="utf-8")
