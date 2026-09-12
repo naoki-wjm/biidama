@@ -28,8 +28,12 @@
   }
 }
 
+:root {
+  /* 書体は変数にしておく（後で明朝への切り替えを足す時はここを差し替える） */
+  --font-body: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
+}
 html {
-  font-family: serif;
+  font-family: var(--font-body);
   font-size: 16px;
   /* iPhone の Safari が横向きで勝手に文字を拡大するのを止める */
   -webkit-text-size-adjust: 100%;
@@ -39,7 +43,7 @@ body {
   margin: 0;
   color: var(--fg);
   background: var(--bg);
-  line-height: 1.9;
+  line-height: 2.0;
   padding: 0 1rem 3rem;
 }
 main, .site-header, .breadcrumb, .site-footer {
@@ -55,6 +59,15 @@ a { color: var(--link); }
 .breadcrumb li + li::before { content: " / "; }
 .breadcrumb-bottom { margin-top: 2rem; padding-top: 0.5rem; border-top: 1px solid var(--line); }
 .page-title { font-size: 1.5rem; line-height: 1.4; }
+/* 本文の見出し: 大きさの差を控えめにして、装飾で段を示す */
+.page-body h1, .page-body h2, .page-body h3, .page-body h4, .page-body h5, .page-body h6 { line-height: 1.5; margin: 2em 0 0.8em; }
+.page-body h1 { font-size: 1.4rem; padding-bottom: 0.3em; border-bottom: 2px solid var(--fg); }
+.page-body h2 { font-size: 1.25rem; padding-bottom: 0.2em; border-bottom: 1px solid var(--line); }
+.page-body h3 { font-size: 1.1rem; padding-left: 0.6em; border-left: 4px solid var(--callout-line); }
+.page-body h4 { font-size: 1.05rem; }
+.page-body h4::before { content: ""; display: inline-block; width: 0.6em; height: 0.6em; margin-right: 0.4em; background: var(--callout-line); vertical-align: 0.05em; }
+.page-body h5, .page-body h6 { font-size: 1rem; color: var(--muted); }
+.page-body h5::before, .page-body h6::before { content: ""; display: inline-block; width: 0.4em; height: 0.4em; margin-right: 0.4em; border: 1px solid var(--muted); vertical-align: 0.15em; }
 .page-meta { color: var(--muted); font-size: 0.85rem; margin: 0.2em 0; }
 .page-meta .date + .date { margin-left: 0.8em; }
 .page-meta .tag { margin-right: 0.5em; }
@@ -65,7 +78,7 @@ a { color: var(--link); }
 .page-body iframe { aspect-ratio: 16 / 9; width: 100%; }
 .page-body table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; }
 .page-body th, .page-body td { border: 1px solid var(--line); padding: 0.2em 0.6em; }
-.page-body pre { background: var(--code-bg); padding: 0.8em; overflow-x: auto; line-height: 1.5; }
+.page-body pre { background: var(--code-bg); padding: 0.8em; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .page-body code { font-family: monospace; font-size: 0.9em; }
 .page-body :not(pre) > code { background: var(--code-bg); padding: 0 0.3em; }
 .page-body blockquote { margin: 1em 0; padding: 0 1em; border-left: 3px solid var(--line); color: var(--muted); }
@@ -96,3 +109,4 @@ ruby rt { font-size: 0.5em; }
 .page-list time { color: var(--muted); font-size: 0.85em; margin-left: 0.5em; }
 
 .site-footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
+.breadcrumb-bottom + .site-footer { margin-top: 0.5rem; }
