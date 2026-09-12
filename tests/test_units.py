@@ -81,6 +81,50 @@ def test_next_chain_and_warnings(tmp_path):
     assert 'rel="prev"' in html and "b.html" in html  # 先の方（b）が前のページ
 
 
+def test_prev_chain_and_warnings(tmp_path):
+    # 新規話は prev だけ書けば、前話の「次のページ」も逆引きで埋まる
+    files = {
+        "a.md": PUB + "1",
+        "b.md": "---\npublish: true\ncreated: 2026-01-02\nprev: \"[[a]]\"\n---\n2",
+        "c.md": "---\npublish: true\ncreated: 2026-01-03\nprev: \"[[b]]\"\n---\n3",
+        "d.md": "---\npublish: true\ncreated: 2026-01-04\nprev: \"[[b]]\"\n---\n4",
+        "e.md": "---\npublish: true\ncreated: 2026-01-05\nprev: \"[[存在しない]]\"\n---\n5",
+    }
+    res = run(tmp_path, files)
+    joined = "\n".join(res.warnings)
+    assert "prev の先が公開ページにありません: e.md" in joined
+    assert "同じページを prev に指すページが2つ" in joined
+    out = res.pages[0].src.parent.parent / "out"
+    a = (out / "a.html").read_text(encoding="utf-8")
+    assert 'rel="next"' in a and "b.html" in a and 'rel="prev"' not in a
+    b = (out / "b.html").read_text(encoding="utf-8")
+    assert 'rel="prev"' in b and "a.html" in b
+    assert 'rel="next"' in b and "c.html" in b and "d.html" not in b  # 先の方（c）を採用
+    c = (out / "c.html").read_text(encoding="utf-8")
+    assert 'rel="prev"' in c and "b.html" in c
+
+
+def test_prev_and_next_mixed(tmp_path):
+    # 既存の next と新しい prev が混在しても同じ鎖になる。食い違いは書いた方を残す
+    files = {
+        "a.md": "---\npublish: true\ncreated: 2026-01-01\nnext: \"[[b]]\"\n---\n1",
+        "b.md": "---\npublish: true\ncreated: 2026-01-02\nprev: \"[[a]]\"\nnext: \"[[c]]\"\n---\n2",
+        "c.md": "---\npublish: true\ncreated: 2026-01-03\nprev: \"[[b]]\"\n---\n3",
+        "x.md": "---\npublish: true\ncreated: 2026-01-04\nprev: \"[[a]]\"\n---\nx",
+    }
+    res = run(tmp_path, files)
+    joined = "\n".join(res.warnings)
+    assert "x の prev は a ですが、a の next は b です" in joined
+    out = res.pages[0].src.parent.parent / "out"
+    a = (out / "a.html").read_text(encoding="utf-8")
+    assert 'href="b.html"' in a and 'href="x.html"' not in a  # a に書いた next が勝つ
+    x = (out / "x.html").read_text(encoding="utf-8")
+    assert 'rel="prev"' in x and "a.html" in x  # x に書いた prev はそのまま
+    b = (out / "b.html").read_text(encoding="utf-8")
+    assert "a.html" in b and "c.html" in b
+    assert len([w for w in res.warnings if "prev" in w or "next" in w]) == 1
+
+
 def test_out_collision_stops():
     class N:
         def __init__(self, rel):

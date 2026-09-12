@@ -60,6 +60,11 @@ class Page:
         n = self.frontmatter.get("next")
         return str(n) if n not in (None, "") else None
 
+    @property
+    def prev_raw(self) -> str | None:
+        n = self.frontmatter.get("prev")
+        return str(n) if n not in (None, "") else None
+
     created: dt.date | None = field(default=None)
     modified: dt.date | None = field(default=None)
 
