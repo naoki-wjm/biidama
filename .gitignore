@@ -37,5 +37,5 @@ tests/samples/out/
 tests/samples/state/
 
 # 査読の依頼文と結果（ローカル作業用。公開リポに含めない）
-査読依頼.md
+査読依頼*.md
 査読/

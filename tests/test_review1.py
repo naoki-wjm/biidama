@@ -142,3 +142,68 @@ def test_walk_prunes_excluded(tmp_path, monkeypatch):
     res = build(cfg, log=lambda *_: None)
     assert [p.rel for p in res.pages] == ["index", "残す/b"]
     assert not any(v.startswith("除外") for v in visited)
+
+
+# ---- 修正確認（codex-2）の追加指摘 A〜D ----
+
+
+def build_pages(tmp_path, files):
+    cfg = make_cfg(tmp_path, files)
+    return cfg, build(cfg, log=lambda *_: None)
+
+
+# A. alias の中のルビ
+def test_wikilink_alias_with_ruby(tmp_path):
+    cfg, res = build_pages(tmp_path, {"index.md": PUB + "[[x|漢字《かな》]] と [[x|表示]]", "x.md": PUB + "x"})
+    html = (cfg.out / "index.html").read_text(encoding="utf-8")
+    assert '<a class="internal" href="x.html"><ruby>漢字<rp>(</rp><rt>かな</rt><rp>)</rp></ruby></a>' in html
+    assert '<a class="internal" href="x.html">表示</a>' in html
+    assert res.warnings == []
+
+
+# B. 参照リンク定義やリンク構文に食われる前に埋め込みを検出する
+def test_embed_detected_before_reference_links(tmp_path):
+    with pytest.raises(BuildError, match="埋め込み"):
+        build_pages(tmp_path, {"index.md": PUB + "![[x]]\n\n[x]: https://example.com/"})
+    with pytest.raises(BuildError, match="埋め込み"):
+        build_pages(tmp_path, {"index.md": PUB + "![[x]](https://example.com/)"})
+
+
+def test_wikilink_and_embed_in_tags_and_comments_untouched(tmp_path):
+    html = render(tmp_path, '<span title="[[x]]" data-t="![[y]]">text</span>\n<!-- [[c]] ![[d]] -->\n[[z]]')
+    assert '<span title="[[x]]" data-t="![[y]]">text</span>' in html
+    assert "<!-- [[c]] ![[d]] -->" in html
+    assert '<span class="unresolved-link">z</span>' in html
+
+
+# C. 原文に私用領域の文字があっても、目印と衝突させない
+def test_private_use_char_in_source_preserved(tmp_path):
+    body = "　段落にがある\n\n`code` と <span data-x=\"\">生</span>\n\n```\nfence\n```\n"
+    html = render(tmp_path, body)
+    assert "<p>　段落にがある</p>" in html
+    assert "<code>code</code>" in html
+    assert 'data-x=""' in html
+    assert "fence" in html
+    assert "　段落" in html  # 字下げも守られている
+
+
+# D. 大文字の .MD
+def test_uppercase_md_extension(tmp_path):
+    cfg, res = build_pages(tmp_path, {"index.md": PUB + "[[UPPER]]", "UPPER.MD": PUB + "u"})
+    assert sorted(p.rel for p in res.pages) == ["UPPER", "index"]
+    assert (cfg.out / "UPPER.html").exists()
+    assert res.warnings == []
+
+
+# 前回試験の補い: state_dir と out が同一、長い frontmatter
+def test_state_dir_equals_out_stops(tmp_path):
+    cfg = make_cfg(tmp_path, {"index.md": PUB + "x"}, out="same", state="same")
+    with pytest.raises(BuildError, match="state_dir"):
+        check_out_dir(cfg)
+
+
+def test_long_broken_frontmatter_stops(tmp_path):
+    long = "description: " + "あ" * 3000 + "\npublish: true\ntags: [a\n"
+    cfg = make_cfg(tmp_path, {"index.md": PUB + "ok", "x.md": "---\n" + long + "---\nbody"})
+    with pytest.raises(BuildError, match="frontmatter"):
+        build(cfg, log=lambda *_: None)

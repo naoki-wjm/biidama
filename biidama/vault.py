@@ -138,7 +138,7 @@ def walk_markdown(vault: Path, exclude: list[str]) -> list[Path]:
             keep.append(d)
         dirnames[:] = keep
         for f in filenames:
-            if f.endswith(".md"):
+            if f.lower().endswith(".md"):  # Windows の glob と同じく大文字の .MD も対象
                 rel = f"{rel_dir}/{f}" if rel_dir else f
                 if rel not in excluded:
                     found.append(here / f)

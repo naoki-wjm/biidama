@@ -4,10 +4,10 @@
   pre:    コード枠の退避（superfences 25）→ 行頭の全角スペースを目印に逃がす（22）→ html ブロック退避（20）
   block:  見出しの regex を「# の後に空白必須」に差し替え（#タグ の行を見出しにしない）／引用を合流させない
   tree:   Callout（25）→ inline（20）→ 見出し id と H1 落とし（15）
-  inline: code span（190）→ エスケープ（180）→ 参照・リンク・画像（170〜150）→ 生 HTML 退避（90）
-          → 裸 URL（88）→ ルビ（85）→ 埋め込み検出（76）→ wikilink（75）→ nl2br（5）
-          wikilink と裸 URL は生 HTML 退避より後なので、タグや属性の中の文字は触らない
-  post:   全角スペースの目印を戻す（5）
+  inline: code span（190）→ エスケープ（180）→ 埋め込み検出（176）→ wikilink（175）
+          → 参照・リンク・画像（170〜150）→ 生 HTML 退避（90）→ 裸 URL（88）→ ルビ（85）→ nl2br（5）
+          埋め込み検出と wikilink は生 HTML 退避より先なので、タグや属性の中は inside_tag で自分で避ける
+  post:   全角スペースの目印を戻す（5）。目印はページごとに原文に無い文字を選ぶ（40 の前処理で決める）
 """
 
 from __future__ import annotations
@@ -58,7 +58,8 @@ def unstash(md, text: str) -> str:
     text = INLINE_STASH_RE.sub(inline_node, text)
     text = HTML_STASH_RE.sub(lambda m: TAG_RE.sub("", str(md.htmlStash.rawHtmlBlocks[int(m.group(1))])), text)
     text = ESCAPE_RE.sub(lambda m: chr(int(m.group(1))), text)
-    return text.replace(ZENKAKU_MARK, IDEOGRAPHIC_SPACE)
+    mark = getattr(md, "biidama_zenkaku_mark", None)
+    return text.replace(mark, IDEOGRAPHIC_SPACE) if mark else text
 
 
 def raw_html_before(md, data: str) -> list[str]:
@@ -90,6 +91,23 @@ def inside_raw_anchor(md, data: str) -> bool:
 
 # ---- inline ---------------------------------------------------------------
 
+TAG_OPEN_RE = re.compile(r"<(?:[A-Za-z/!?])")
+
+
+def inside_tag(data: str, pos: int) -> bool:
+    """pos が生 HTML のタグ（またはコメント）の中か。直前の < が > で閉じていなければ中とみなす。
+
+    wikilink と埋め込み検出は生 HTML の退避（90）より先に走らせる必要があるので
+    （後だと Markdown のリンク・参照・ルビに食われる）、属性の中を自分で避ける。
+    """
+    lt = data.rfind("<", 0, pos)
+    if lt < 0:
+        return False
+    if data.find(">", lt, pos) >= 0:
+        return False
+    return TAG_OPEN_RE.match(data, lt) is not None
+
+
 class EmbedGuard(InlineProcessor):
     """![[埋め込み]] は未対応。黙って崩さず止める。"""
 
@@ -98,6 +116,8 @@ class EmbedGuard(InlineProcessor):
         self.ctx = ctx
 
     def handleMatch(self, m, data):
+        if inside_tag(data, m.start(0)):
+            return None, None, None
         raise BuildError(f"埋め込み ![[{m.group(1)}]] は未対応です: {self.ctx.page.rel}.md")
 
 
@@ -109,6 +129,8 @@ class WikiLinkInline(InlineProcessor):
         self.ctx = ctx
 
     def handleMatch(self, m, data):
+        if inside_tag(data, m.start(0)):
+            return None, None, None
         inner = unstash(self.md, m.group(1))
         link = parse_wikilink(inner)
         page = self.ctx.page
@@ -162,8 +184,17 @@ class AutoLinkInline(InlineProcessor):
 IDEOGRAPHIC_SPACE = "　"
 # 引用記号とリスト記号の後も対象。4 スペース以上（字下げコード）は対象外
 LEADING_ZENKAKU_RE = re.compile(r"^((?:[ \t]{0,3}>)*[ \t]{0,3}(?:(?:[-*+]|\d+[.)])[ \t]{1,3})?)　", re.M)
-# 目印は私用領域の一文字。実体参照 &#x3000; を目印にすると生 HTML の中にある同じ文字列まで戻してしまう
-ZENKAKU_MARK = ""
+# 目印の候補（私用領域）。原文に現れない文字をページごとに選ぶ。固定の一文字だと原文の同じ文字まで戻してしまう
+ZENKAKU_MARK_CANDIDATES = [chr(c) for c in range(0xE000, 0xE010)]
+
+
+class PickZenkakuMark(Preprocessor):
+    """コード枠の退避より前（原文がそろっている段階）に、原文に無い目印を選んでおく。"""
+
+    def run(self, lines):
+        source = "\n".join(lines)
+        self.md.biidama_zenkaku_mark = next((c for c in ZENKAKU_MARK_CANDIDATES if c not in source), None)
+        return lines
 
 
 class KeepLeadingZenkakuSpace(Preprocessor):
@@ -171,15 +202,20 @@ class KeepLeadingZenkakuSpace(Preprocessor):
 
     python-markdown は段落の先頭を str.lstrip() で削り、Python は全角スペースも空白扱いなので
     小説の字下げが消える。コード枠は先に退避されているので届かない（4スペース字下げも除外）。
+    目印が選べなかった（候補が全部原文にある）ページは、字下げを守れないまま通す。
     """
 
     def run(self, lines):
-        return LEADING_ZENKAKU_RE.sub(lambda m: m.group(1) + ZENKAKU_MARK, "\n".join(lines)).split("\n")
+        mark = getattr(self.md, "biidama_zenkaku_mark", None)
+        if not mark:
+            return lines
+        return LEADING_ZENKAKU_RE.sub(lambda m: m.group(1) + mark, "\n".join(lines)).split("\n")
 
 
 class RestoreZenkakuSpace(Postprocessor):
     def run(self, text):
-        return text.replace(ZENKAKU_MARK, IDEOGRAPHIC_SPACE)
+        mark = getattr(self.md, "biidama_zenkaku_mark", None)
+        return text.replace(mark, IDEOGRAPHIC_SPACE) if mark else text
 
 
 # ---- tree -----------------------------------------------------------------
@@ -305,9 +341,10 @@ class BiidamaExtension(Extension):
         # superfences のコード退避（25）の後、html ブロック退避（20）の前
         md.preprocessors.register(KeepLeadingZenkakuSpace(md), "biidama_zenkaku", 22)
         md.postprocessors.register(RestoreZenkakuSpace(md), "biidama_zenkaku_restore", 5)
-        # 生 HTML 退避（90）より後ろに置き、タグや属性の中の [[ ]] を触らない（純正 wikilinks 拡張と同じ位置）
-        md.inlinePatterns.register(EmbedGuard(self.ctx, md), "biidama_embed_guard", 76)
-        md.inlinePatterns.register(WikiLinkInline(self.ctx, md), "biidama_wikilink", 75)
+        # Markdown のリンク・参照（170〜150）やルビ（85）に食われる前に認識する。生 HTML の中は inside_tag で避ける
+        md.inlinePatterns.register(EmbedGuard(self.ctx, md), "biidama_embed_guard", 176)
+        md.inlinePatterns.register(WikiLinkInline(self.ctx, md), "biidama_wikilink", 175)
+        md.preprocessors.register(PickZenkakuMark(md), "biidama_zenkaku_mark", 40)
         md.inlinePatterns.register(AutoLinkInline(md), "biidama_autolink", 88)
         ruby.register(md)
         md.treeprocessors.register(CalloutTree(md), "biidama_callout", 25)
