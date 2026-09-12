@@ -95,17 +95,43 @@ TAG_OPEN_RE = re.compile(r"<(?:[A-Za-z/!?])")
 
 
 def inside_tag(data: str, pos: int) -> bool:
-    """pos が生 HTML のタグ（またはコメント）の中か。直前の < が > で閉じていなければ中とみなす。
+    """pos が生 HTML のタグ（またはコメント）の中か。
 
     wikilink と埋め込み検出は生 HTML の退避（90）より先に走らせる必要があるので
     （後だと Markdown のリンク・参照・ルビに食われる）、属性の中を自分で避ける。
+    先頭から pos まで「タグの外／タグの中／属性値の引用符の中／コメントの中」を追う。
+    属性値の中の > はタグの終わりではなく、コメントの終わりは --> だけ。
+    （行の途中の生 HTML は python-markdown 自身が属性値の > をタグの終わりと見なすので、
+    そこは本体の限界。行頭からのブロック HTML は本物の解析器で読まれるので無事）
     """
-    lt = data.rfind("<", 0, pos)
-    if lt < 0:
-        return False
-    if data.find(">", lt, pos) >= 0:
-        return False
-    return TAG_OPEN_RE.match(data, lt) is not None
+    in_tag = False
+    in_comment = False
+    quote = ""
+    i = 0
+    while i < pos:
+        c = data[i]
+        if in_comment:
+            if data.startswith("-->", i):
+                in_comment = False
+                i += 3
+                continue
+        elif in_tag:
+            if quote:
+                if c == quote:
+                    quote = ""
+            elif c in ("'", '"'):
+                quote = c
+            elif c == ">":
+                in_tag = False
+        elif c == "<":
+            if data.startswith("<!--", i):
+                in_comment = True
+                i += 4
+                continue
+            if TAG_OPEN_RE.match(data, i):
+                in_tag = True
+        i += 1
+    return in_tag or in_comment
 
 
 class EmbedGuard(InlineProcessor):
@@ -184,16 +210,20 @@ class AutoLinkInline(InlineProcessor):
 IDEOGRAPHIC_SPACE = "　"
 # 引用記号とリスト記号の後も対象。4 スペース以上（字下げコード）は対象外
 LEADING_ZENKAKU_RE = re.compile(r"^((?:[ \t]{0,3}>)*[ \t]{0,3}(?:(?:[-*+]|\d+[.)])[ \t]{1,3})?)　", re.M)
-# 目印の候補（私用領域）。原文に現れない文字をページごとに選ぶ。固定の一文字だと原文の同じ文字まで戻してしまう
-ZENKAKU_MARK_CANDIDATES = [chr(c) for c in range(0xE000, 0xE010)]
+# 目印は私用領域（U+E000〜U+F8FF）から、原文に現れない文字をページごとに選ぶ。固定の一文字だと原文の同じ文字まで戻してしまう
+PRIVATE_USE = range(0xE000, 0xF900)
 
 
 class PickZenkakuMark(Preprocessor):
-    """コード枠の退避より前（原文がそろっている段階）に、原文に無い目印を選んでおく。"""
+    """コード枠の退避より前（原文がそろっている段階）に、原文に無い目印を選んでおく。選べなければ止める。"""
 
     def run(self, lines):
         source = "\n".join(lines)
-        self.md.biidama_zenkaku_mark = next((c for c in ZENKAKU_MARK_CANDIDATES if c not in source), None)
+        used = {ch for ch in source if 0xE000 <= ord(ch) < 0xF900}
+        mark = next((chr(c) for c in PRIVATE_USE if chr(c) not in used), None)
+        if mark is None:
+            raise BuildError("私用領域の文字が原文に多すぎて、行頭の全角スペースを守る目印を選べません")
+        self.md.biidama_zenkaku_mark = mark
         return lines
 
 
@@ -202,13 +232,10 @@ class KeepLeadingZenkakuSpace(Preprocessor):
 
     python-markdown は段落の先頭を str.lstrip() で削り、Python は全角スペースも空白扱いなので
     小説の字下げが消える。コード枠は先に退避されているので届かない（4スペース字下げも除外）。
-    目印が選べなかった（候補が全部原文にある）ページは、字下げを守れないまま通す。
     """
 
     def run(self, lines):
-        mark = getattr(self.md, "biidama_zenkaku_mark", None)
-        if not mark:
-            return lines
+        mark = self.md.biidama_zenkaku_mark
         return LEADING_ZENKAKU_RE.sub(lambda m: m.group(1) + mark, "\n".join(lines)).split("\n")
 
 

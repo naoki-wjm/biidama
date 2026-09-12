@@ -202,6 +202,43 @@ def test_state_dir_equals_out_stops(tmp_path):
         check_out_dir(cfg)
 
 
+# ---- 三度目の確認（codex-3）----
+
+
+def test_wikilink_in_attribute_with_gt(tmp_path):
+    # 行頭から始まる生 HTML（ブロック）は本物の HTML 解析器で読まれるので、> 入りの属性もそのまま残る
+    body = (
+        '<div title="a > [[x]]" data-e=\'b > ![[y]]\'>text</div>\n\n'
+        "<!-- a > [[c]] ![[d]] -->\n\n"
+        "[[z]]"
+    )
+    html = render(tmp_path, body)
+    assert '<div title="a > [[x]]" data-e=\'b > ![[y]]\'>text</div>' in html
+    assert "<!-- a > [[c]] ![[d]] -->" in html
+    assert '<span class="unresolved-link">z</span>' in html
+
+
+def test_wikilink_in_inline_attribute_with_gt_not_rewritten(tmp_path):
+    # 行の途中の生 HTML は python-markdown 自身が属性値の > をタグの終わりと見なす（本体の限界）。
+    # biidama 側の約束は「その中の [[ ]] を書き換えない・![[ で止まらない」まで
+    html = render(tmp_path, 'text <span title="a > [[x]]" data-e=\'b > ![[y]]\'>t</span> <!-- a > [[c]] --> [[z]]')
+    assert "[[x]]" in html and "![[y]]" in html and "[[c]]" in html
+    assert 'href="x.html"' not in html
+    assert '<span class="unresolved-link">z</span>' in html
+
+
+def test_zenkaku_mark_survives_many_private_use_chars(tmp_path):
+    many = "".join(chr(c) for c in range(0xE000, 0xE010))
+    html = render(tmp_path, f"　段落 {many}")
+    assert "<p>　段落 " + many + "</p>" in html
+
+
+def test_zenkaku_mark_exhausted_stops(tmp_path):
+    every = "".join(chr(c) for c in range(0xE000, 0xF900))
+    with pytest.raises(BuildError, match="目印"):
+        render(tmp_path, "　段落 " + every)
+
+
 def test_long_broken_frontmatter_stops(tmp_path):
     long = "description: " + "あ" * 3000 + "\npublish: true\ntags: [a\n"
     cfg = make_cfg(tmp_path, {"index.md": PUB + "ok", "x.md": "---\n" + long + "---\nbody"})
