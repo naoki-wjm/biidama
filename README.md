@@ -53,19 +53,29 @@ biidama/tags.py   … タグページの自動生成
 biidama/features/ … 分離した機能（ruby・series）
 templates/        … jinja2 雛型（base・page・folder・tag・tags）
 static/           … 公開側の CSS（style.css・pygments.css）と site.js・lightbox.js・playlist.js。そのまま out/static/ に複製
+tests/samples/    … 合成の試験片と期待 HTML（黄金テスト）
+tests/            … 止まるべき所で止まることの確認
+```
 
-Pygments の CSS を作り直すとき（色を変えたい時だけ）:
+依存は 5 本。版は固定です（`requirements.txt`・`pyproject.toml`）。
+
+- markdown … Markdown → HTML の本体
+- jinja2 … 雛型
+- pyyaml … 設定と frontmatter
+- pymdown-extensions … 引用の中のコード枠（SuperFences）と、コード枠の色付けの受け口（highlight）
+- pygments … コード枠の色付け（色は `static/pygments.css`）
+
+試験には pytest を使います（`pip install -e .[test]`）。
+
+### コード枠の色を作り直す
+
+`static/pygments.css` は Pygments から作った生成物です。色を変えたい時だけ作り直します:
 
 ```
 python -c "from pygments.formatters import HtmlFormatter as F; print(F(style='default').get_style_defs('.highlight'))"
 ```
 
 ライトは `default`、ダークは `github-dark` を `:root[data-theme="dark"] .highlight` と `@media (prefers-color-scheme: dark)` の `:root:not([data-theme="light"]) .highlight` の前置きで並べています（`.hll` と枠自体の背景は落とす）。
-tests/samples/    … 合成の試験片と期待 HTML（黄金テスト）
-tests/            … 止まるべき所で止まることの確認
-```
-
-依存は markdown・jinja2・pyyaml・pymdown-extensions（引用の中のコード枠のため。SuperFences だけ使用）。版は固定です。
 
 ### 開発
 
