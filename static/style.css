@@ -112,3 +112,14 @@ ruby rt { font-size: 0.5em; }
 .site-footer .made-with { float: right; font-size: 0.75rem; }
 .site-footer .made-with a { color: var(--muted); }
 .breadcrumb-bottom + .site-footer { margin-top: 0.5rem; }
+
+/* lightbox（static/lightbox.js。lightbox2 互換の a[data-lightbox] を拡大表示） */
+.wjm-lightbox { position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
+.wjm-lightbox figure { margin: 0; max-width: 92vw; max-height: 92vh; display: flex; flex-direction: column; align-items: center; gap: 0.6rem; cursor: default; }
+.wjm-lightbox figure img { max-width: 92vw; max-height: 85vh; object-fit: contain; border-radius: 4px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6); }
+.wjm-lightbox figcaption { color: #e8e8e8; font-size: 0.9rem; text-align: center; max-width: 80vw; }
+.wjm-lightbox button { position: fixed; background: none; border: none; color: #fff; font-size: 2.2rem; line-height: 1; cursor: pointer; padding: 0.4rem 0.9rem; opacity: 0.75; user-select: none; }
+.wjm-lightbox button:hover { opacity: 1; }
+.wjm-lightbox-close { top: 0.4rem; right: 0.6rem; }
+.wjm-lightbox-prev { left: 0.3rem; top: 50%; transform: translateY(-50%); font-size: 2.8rem; }
+.wjm-lightbox-next { right: 0.3rem; top: 50%; transform: translateY(-50%); font-size: 2.8rem; }

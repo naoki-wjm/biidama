@@ -11,7 +11,7 @@ Obsidian の保管庫（黒曜石）から、公開と決めたページだけ�
 
 ## 状態
 
-2026-09 時点で `build`（保管庫 → 静的 HTML）と `publish`（変わったファイルだけ送信）・`prune`（抜け殻の掃除）が動きます。lightbox・playlist・タグページはこれからです。
+2026-09 時点で `build`（保管庫 → 静的 HTML）と `publish`（変わったファイルだけ送信）・`prune`（抜け殻の掃除）が動きます。lightbox は入っています（`<a data-lightbox="組" data-title="題"><img></a>` の lightbox2 互換記法）。playlist・タグページはこれからです。
 
 ## 使い方
 
@@ -51,7 +51,7 @@ biidama publish -c config.local.yml             # 変わったファイルだけ
 biidama/          … 本体（config・vault・links・mdext・folders・build・publish・cli）
 biidama/features/ … 分離した機能（ruby・series）
 templates/        … jinja2 雛型（base・page・folder）
-static/           … 公開側の CSS。そのまま out/static/ に複製
+static/           … 公開側の CSS と lightbox.js。そのまま out/static/ に複製
 tests/samples/    … 合成の試験片と期待 HTML（黄金テスト）
 tests/            … 止まるべき所で止まることの確認
 ```

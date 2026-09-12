@@ -50,7 +50,7 @@ def test_first_publish_sends_everything_and_writes_ledger(tmp_path):
     cfg = make_cfg(tmp_path, {"index.md": PUB + "入口", "a/x.md": PUB + "x"})
     ssh = FakeSSH()
     res = publish(cfg, REMOTE, runner=ssh, log=quiet)
-    assert sorted(res.sent) == ["a.html", "a/x.html", "index.html", "static/style.css"]
+    assert sorted(res.sent) == ["a.html", "a/x.html", "index.html", "static/lightbox.js", "static/style.css"]
     assert len(ssh.calls) == 1
     cmd, names = ssh.calls[0]
     assert cmd[:3] == ["ssh", "-o", "BatchMode=yes"] and cmd[-2] == "example"
@@ -68,7 +68,7 @@ def test_second_publish_sends_only_changes(tmp_path):
     (cfg.vault / "a/x.md").write_text(PUB + "x を書き換えた", encoding="utf-8")
     ssh = FakeSSH()
     res = publish(cfg, REMOTE, runner=ssh, log=quiet)
-    assert res.sent == ["a/x.html"] and res.unchanged == 3
+    assert res.sent == ["a/x.html"] and res.unchanged == 4
     assert ssh.calls[0][1] == {"a/x.html"}
     # 本文が変わったので更新日は今日、変わっていないページは台帳の日付のまま
     import datetime as dt
@@ -85,7 +85,7 @@ def test_dry_run_sends_nothing_and_keeps_ledger(tmp_path):
     ssh = FakeSSH()
     res = publish(cfg, None, dry_run=True, runner=ssh, log=quiet)
     assert res.dry_run and ssh.calls == [] and not (cfg.state_dir / "ledger.json").exists()
-    assert sorted(res.sent) == ["index.html", "static/style.css"]
+    assert sorted(res.sent) == ["index.html", "static/lightbox.js", "static/style.css"]
 
 
 def test_failed_send_keeps_ledger(tmp_path):
