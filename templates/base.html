@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ page.title }} - {{ site.name }}</title>
+<title>{% if page.title == site.name %}{{ site.name }}{% else %}{{ page.title }} - {{ site.name }}{% endif %}</title>
 <link rel="stylesheet" href="{{ root }}static/style.css">
 </head>
 <body>
