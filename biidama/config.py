@@ -17,6 +17,8 @@ class SiteConfig:
     icon: str = ""  # static/ の中の画像。ファビコン・OGP 画像・ヘッダーの印に使う（空なら何も出さない）
     theme_color: str = ""  # <meta name="theme-color">（ブラウザの枠の色）。空なら出さない
     head_extra: list[str] = field(default_factory=list)  # head にそのまま入れる行（作者宣言など、道具に書きたくないもの）
+    recent: int = 20  # 「最近の更新」一覧（最近の更新.html）の件数。0 なら作らない
+    recent_home: int = 5  # トップページの末尾に出す件数。0 なら出さない
 
 
 @dataclass
@@ -48,11 +50,22 @@ def load_config(path: str | Path) -> Config:
 
     exclude = [str(x).strip("/").replace("\\", "/") for x in (data.get("exclude") or [])]
     site_raw = data.get("site") or {}
+
+    def count(key: str, default: int) -> int:
+        v = site_raw.get(key, default)
+        if v is None:
+            return default
+        if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+            raise BuildError(f"設定 site.{key} は 0 以上の整数で書いてください: {v!r}")
+        return v
+
     site = SiteConfig(
         name=str(site_raw.get("name", "biidama")),
         url=str(site_raw.get("url", "")),
         icon=str(site_raw.get("icon") or "").strip().lstrip("/"),
         theme_color=str(site_raw.get("theme_color") or "").strip(),
         head_extra=[str(x) for x in (site_raw.get("head_extra") or []) if str(x).strip()],
+        recent=count("recent", 20),
+        recent_home=count("recent_home", 5),
     )
     return Config(vault=vault, out=out, state_dir=state_dir, exclude=exclude, site=site)

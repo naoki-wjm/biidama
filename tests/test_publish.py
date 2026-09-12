@@ -33,13 +33,14 @@ class FakeSSH:
         return subprocess.CompletedProcess(cmd, 1 if self.fail else 0, b"", b"ng" if self.fail else b"")
 
 
-def make_cfg(tmp_path: Path, files: dict[str, str]) -> Config:
+def make_cfg(tmp_path: Path, files: dict[str, str], recent: int = 0) -> Config:
     vault = tmp_path / "vault"
     for rel, text in files.items():
         p = vault / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
-    return Config(vault=vault, out=tmp_path / "out", state_dir=tmp_path / "state", site=SiteConfig(name="t"))
+    # 既定では「最近の更新」を切って publish の流れだけを見る（一覧はページが変わるたびに変わるので）
+    return Config(vault=vault, out=tmp_path / "out", state_dir=tmp_path / "state", site=SiteConfig(name="t", recent=recent, recent_home=recent))
 
 
 REMOTE = Remote(host="example", remote_dir="web/site/")
@@ -81,6 +82,18 @@ def test_second_publish_sends_only_changes(tmp_path):
     assert ledger["pages"]["index.md"]["updated"] == "2026-02-02"
     html = (cfg.out / "a/x.html").read_text(encoding="utf-8")
     assert f'更新 <time datetime="{dt.date.today().isoformat()}">' in html
+
+
+def test_changed_page_also_resends_home_and_recent_list(tmp_path):
+    """一枚直すと、その一枚と、一覧を載せているトップ・最近の更新.html だけが送り直しになる。"""
+    cfg = make_cfg(tmp_path, {"index.md": PUB + "入口", "a/x.md": PUB + "x", "a/y.md": PUB + "y"}, recent=5)
+    publish(cfg, REMOTE, runner=FakeSSH(), log=quiet)
+    (cfg.vault / "a/y.md").write_text(PUB + "y2", encoding="utf-8")
+    res = publish(cfg, REMOTE, runner=FakeSSH(), log=quiet)
+    assert sorted(res.sent) == ["a/y.html", "index.html", "最近の更新.html"]
+    # 更新日が動いたのは y だけ。トップは一覧が変わっても更新日は動かない
+    ledger = read_ledger(cfg)["pages"]
+    assert ledger["a/y.md"]["updated"] != "2026-02-02" and ledger["index.md"]["updated"] == "2026-02-02"
 
 
 def test_dry_run_sends_nothing_and_keeps_ledger(tmp_path):

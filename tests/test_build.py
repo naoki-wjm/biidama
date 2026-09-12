@@ -69,7 +69,8 @@ def test_manifest(result):
     assert "index.md" in srcs and "小説/第1話.md" in srcs
     assert "雑記/下書き.md" not in srcs
     generated = {p["out"] for p in m["pages"] if p["src"] is None}
-    assert "雑記.html" in generated and "タグ.html" in generated and all(o == "雑記.html" or o.startswith("タグ") for o in generated)
+    assert {"雑記.html", "タグ.html", "最近の更新.html"} <= generated
+    assert all(o in ("雑記.html", "最近の更新.html") or o.startswith("タグ") for o in generated)
     for p in m["pages"]:
         if p["src"]:
             assert len(p["hash"]) == 64

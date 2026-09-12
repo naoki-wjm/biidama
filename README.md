@@ -11,7 +11,7 @@ Obsidian の保管庫（黒曜石）から、公開と決めたページだけ�
 
 ## 状態
 
-2026-09 時点で `build`（保管庫 → 静的 HTML）と `publish`（変わったファイルだけ送信）・`prune`（抜け殻の掃除）が動きます。lightbox（`<a data-lightbox="組" data-title="題"><img></a>` の lightbox2 互換記法）・playlist（`<div class="playlist">` の中に `<audio controls src data-title data-artist>` を並べる）・タグページ（`タグ.html` と `タグ/<名前>.html` を自動生成。原稿側で `タグ` の名前は予約）・OGP（frontmatter の `description`、無ければ本文の先頭。設定の `site.icon` に `static/` の中の画像を書けば OGP 画像・ファビコン・ヘッダーの印にも使う。絵はリポに入れない。`site.theme_color` でブラウザの枠の色、`site.head_extra` で作者宣言などの行を head にそのまま入れられる）・コード枠の色付け（Pygments）・読者のテーマ／書体切替と「上へ戻る」（`static/site.js`）が入っています。
+2026-09 時点で `build`（保管庫 → 静的 HTML）と `publish`（変わったファイルだけ送信）・`prune`（抜け殻の掃除）が動きます。lightbox（`<a data-lightbox="組" data-title="題"><img></a>` の lightbox2 互換記法）・playlist（`<div class="playlist">` の中に `<audio controls src data-title data-artist>` を並べる）・タグページ（`タグ.html` と `タグ/<名前>.html` を自動生成。原稿側で `タグ` の名前は予約）・OGP（frontmatter の `description`、無ければ本文の先頭。設定の `site.icon` に `static/` の中の画像を書けば OGP 画像・ファビコン・ヘッダーの印にも使う。絵はリポに入れない。`site.theme_color` でブラウザの枠の色、`site.head_extra` で作者宣言などの行を head にそのまま入れられる）・コード枠の色付け（Pygments）・読者のテーマ／書体切替と「上へ戻る」（`static/site.js`）・「最近の更新」の一覧（`最近の更新.html`。台帳の更新日で新しい順。トップページの末尾にも数件出す。件数は設定の `site.recent` と `site.recent_home`、0 で無し）が入っています。
 
 ## 使い方
 
@@ -27,6 +27,7 @@ biidama publish -c config.local.yml             # 変わったファイルだけ
 
 - 出力の URL は保管庫の相対パスそのまま＋ `.html`（`雑録/○○.html`）
 - 同名ノートの無いフォルダには索引ページを自動で作ります（`雑記.html` など）
+- `タグ`・`最近の更新`・`static` は出力側で使う名前なので、原稿のフォルダ名・ノート名には使えません（同名があれば止まります）
 - 止まるのは、公開ページの frontmatter が壊れている・2ページが同じ出力先になる・basename が複数一致する・`![[埋め込み]]` や `#^ブロック参照` に出会った時。リンク切れや非公開ページへのリンクは注意を出して続けます
 - `.biidama/manifest.json` に「ページ一覧・出力先・本文ハッシュ」を書き出します
 
@@ -50,8 +51,9 @@ biidama publish -c config.local.yml             # 変わったファイルだけ
 ```
 biidama/          … 本体（config・vault・links・mdext・folders・build・publish・cli）
 biidama/tags.py   … タグページの自動生成
+biidama/recent.py … 「最近の更新」の一覧（台帳の更新日で並べる）
 biidama/features/ … 分離した機能（ruby・series）
-templates/        … jinja2 雛型（base・page・folder・tag・tags）
+templates/        … jinja2 雛型（base・page・folder・tag・tags・recent・_recent＝トップ末尾の部品）
 static/           … 公開側の CSS（style.css・pygments.css）と site.js・lightbox.js・playlist.js。そのまま out/static/ に複製
 tests/samples/    … 合成の試験片と期待 HTML（黄金テスト）
 tests/            … 止まるべき所で止まることの確認

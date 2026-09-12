@@ -1,0 +1,15 @@
+{% macro recent_section(items, more) %}
+{% if items %}
+<section class="recent">
+<h2>最近の更新</h2>
+<ul class="page-list">
+{% for p in items %}
+<li><a href="{{ p.href }}">{{ p.title }}</a> <time datetime="{{ p.updated }}">{{ p.updated }}</time></li>
+{% endfor %}
+</ul>
+{% if more %}
+<p class="recent-more"><a href="{{ more }}">もっと見る</a></p>
+{% endif %}
+</section>
+{% endif %}
+{% endmacro %}

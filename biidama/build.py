@@ -19,6 +19,7 @@ from .features.series import compute_nav
 from .folders import FolderIndex, make_folder_indexes
 from .links import LinkIndex, Node, relative_href, root_prefix
 from .mdext import RenderContext, make_markdown, render_body
+from .recent import HOME_OUT, RECENT_NAME, RecentList, make_recent
 from .tags import TAG_DIR, TagIndex, TagList, make_tag_indexes
 from .vault import Page, scan
 
@@ -32,6 +33,7 @@ class BuildResult:
     pages: list[Page]
     folders: list[FolderIndex]
     tags: list[TagIndex] = field(default_factory=list)
+    recent: RecentList | None = None
     warnings: list[str] = field(default_factory=list)
     manifest_path: Path | None = None
     updated: dict[str, dt.date | None] = field(default_factory=dict)  # rel → 表示した更新日（publish が台帳に写す）
@@ -47,7 +49,7 @@ def make_env() -> Environment:
 
 
 RESERVED_PREFIXES = ("static/", TAG_DIR + "/")  # 出力側で使う名前。原稿のフォルダ名と衝突させない
-RESERVED_FILES = (TAG_DIR + ".html",)
+RESERVED_FILES = (TAG_DIR + ".html", RECENT_NAME + ".html")
 
 
 def check_out_collisions(nodes: list[Node]) -> None:
@@ -57,7 +59,7 @@ def check_out_collisions(nodes: list[Node]) -> None:
         if key in seen:
             raise BuildError(f"2つのページが同じ出力先になります: {seen[key]} と {n.rel}")
         if key.startswith(RESERVED_PREFIXES) or key in RESERVED_FILES:
-            raise BuildError(f"フォルダ名・ノート名 static と {TAG_DIR} は出力側で使うので原稿には使えません: {n.rel}")
+            raise BuildError(f"フォルダ名・ノート名 static・{TAG_DIR}・{RECENT_NAME} は出力側で使うので原稿には使えません: {n.rel}")
         seen[key] = n.rel
 
 
@@ -179,6 +181,7 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     folder_tpl = env.get_template("folder.html")
     tag_tpl = env.get_template("tag.html")
     tags_tpl = env.get_template("tags.html")
+    recent_tpl = env.get_template("recent.html")
     site_url = cfg.site.url.rstrip("/") + "/" if cfg.site.url else ""
     assets = static_versions()
     icon = cfg.site.icon
@@ -199,6 +202,11 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     md = make_markdown(ctx)
     ledger = load_ledger(cfg)
     today = dt.date.today()
+    updated: dict[str, dt.date | None] = {p.rel: updated_date(p, ledger, today) for p in pages}
+    # 最近の更新: 一覧ページ（site.recent 件）とトップの末尾（site.recent_home 件）。どちらも 0 なら無し
+    recent = make_recent(pages, updated, max(cfg.site.recent, cfg.site.recent_home))
+    recent_page = recent if cfg.site.recent > 0 else None
+    site["has_recent"] = recent_page is not None
 
     check_out_dir(cfg)
 
@@ -220,13 +228,20 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     def tag_links(node: Node, names: list[str]) -> list[dict]:
         return [{"name": t, "href": link(node, tag_node.get(t))} for t in names]
 
+    def recent_items(node: Node, ps: list[Page]) -> list[dict]:
+        return [{"title": p.title, "href": link(node, p), "updated": recent.dates[p.rel].isoformat()} for p in ps]
+
+    def home_recent(node: Node) -> dict:
+        """トップページだけに渡す「最近の更新」の材料。他のページには空。"""
+        if node.out_rel != HOME_OUT or recent is None:
+            return {"recent": [], "recent_more": None}
+        return {"recent": recent_items(node, recent.head(cfg.site.recent_home)), "recent_more": link(node, recent_page)}
+
     # 失敗しうる変換をすべて先に済ませ、成功した時だけ旧出力を消して書き出す
     outputs: list[tuple[str, str]] = []
-    updated: dict[str, dt.date | None] = {}
     for p in pages:
         body_html = render_body(md, ctx, p, p.title, p.body)
         nav = navs[p.rel]
-        updated[p.rel] = updated_date(p, ledger, today)
         desc = str(p.frontmatter.get("description") or "").strip() or summarize(body_html)
         html = page_tpl.render(
             **common(p, desc, "article"),
@@ -237,6 +252,7 @@ def build(cfg: Config, *, log=print) -> BuildResult:
             crumbs=breadcrumbs(p, folder_node),
             prev={"title": nav.prev.title, "href": link(p, nav.prev)} if nav.prev else None,
             next={"title": nav.next.title, "href": link(p, nav.next)} if nav.next else None,
+            **home_recent(p),
         )
         outputs.append((p.out_rel, html))
 
@@ -253,6 +269,7 @@ def build(cfg: Config, *, log=print) -> BuildResult:
                 }
                 for s in f.subfolders
             ],
+            **home_recent(f),
         )
         outputs.append((f.out_rel, html))
 
@@ -270,6 +287,13 @@ def build(cfg: Config, *, log=print) -> BuildResult:
             tags=[{"name": t.tag, "href": link(tag_list, t), "count": len(t.pages)} for t in tag_indexes],
         )
         outputs.append((tag_list.out_rel, html))
+    if recent_page is not None:
+        html = recent_tpl.render(
+            **common(recent_page, f"更新日の新しい順に {len(recent_page.pages)} ページ"),
+            crumbs=[],
+            pages=recent_items(recent_page, recent_page.pages),
+        )
+        outputs.append((recent_page.out_rel, html))
 
     try:
         if cfg.out.exists():
@@ -292,11 +316,12 @@ def build(cfg: Config, *, log=print) -> BuildResult:
         ]
         + [{"src": None, "out": f.out_rel, "title": f.title, "hash": None} for f in folders]
         + [{"src": None, "out": t.out_rel, "title": t.title, "hash": None} for t in tag_indexes]
-        + ([{"src": None, "out": tag_list.out_rel, "title": tag_list.title, "hash": None}] if tag_list else []),
+        + ([{"src": None, "out": tag_list.out_rel, "title": tag_list.title, "hash": None}] if tag_list else [])
+        + ([{"src": None, "out": recent_page.out_rel, "title": recent_page.title, "hash": None}] if recent_page else []),
     }
     cfg.state_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = cfg.state_dir / "manifest.json"
     write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=1))
 
     log(f"ページ {len(pages)} 枚、フォルダ索引 {len(folders)} 枚、タグ {len(tag_indexes)} 種 → {cfg.out}")
-    return BuildResult(pages=pages, folders=folders, tags=tag_indexes, warnings=warnings, manifest_path=manifest_path, updated=updated)
+    return BuildResult(pages=pages, folders=folders, tags=tag_indexes, recent=recent_page, warnings=warnings, manifest_path=manifest_path, updated=updated)

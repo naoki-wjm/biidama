@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_recent.html" import recent_section %}
 {% block main %}
 <article>
 <h1 class="page-title">{{ page.title }}</h1>
@@ -17,6 +18,7 @@
 {{ body|safe }}
 </div>
 </article>
+{{ recent_section(recent, recent_more) }}
 {% if prev or next %}
 <nav class="series-nav" aria-label="前後のページ">
 <div class="series-nav-prev">{% if prev %}<a href="{{ prev.href }}" rel="prev">← 前のページ<br><small>{{ prev.title }}</small></a>{% endif %}</div>

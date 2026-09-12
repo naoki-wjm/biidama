@@ -8,7 +8,7 @@ import pytest
 
 from biidama import BuildError
 from biidama.build import build, summarize
-from biidama.config import Config, SiteConfig
+from biidama.config import Config, SiteConfig, load_config
 
 PUB = "---\npublish: true\ncreated: 2026-01-01\n---\n"
 TAGGED = "---\npublish: true\ncreated: 2026-01-0{d}\ntags:\n  - {tag}\n---\n"
@@ -138,3 +138,87 @@ def test_icon_must_exist_in_static(tmp_path):
     cfg, res = run(tmp_path, {"index.md": PUB + "入口"}, url="https://example.com/", icon="static/nothing.png")
     assert any("site.icon" in w for w in res.warnings)
     assert "og:image" not in read(cfg, "index.html")
+
+
+# ---- 最近の更新 ----------------------------------------------------------------
+
+DATED = "---\npublish: true\ncreated: 2026-01-01\nmodified: {m}\n---\n"
+
+
+def test_recent_list_and_home(tmp_path):
+    files = {
+        "index.md": DATED.format(m="2026-09-09") + "入口",
+        "a.md": DATED.format(m="2026-03-03") + "a",
+        "b.md": DATED.format(m="2026-05-05") + "b",
+        "c.md": DATED.format(m="2026-05-05") + "c",
+        "d.md": "---\npublish: true\n---\nd",  # 日付が無いページは載らない
+        "s/e.md": DATED.format(m="2026-08-08") + "e",
+    }
+    cfg, res = run(tmp_path, files, recent=3, recent_home=2)
+    # 新しい順、同じ日は名前順、トップ自身は入らない、件数で切る
+    assert [p.rel for p in res.recent.pages] == ["s/e", "b", "c"]
+    lst = read(cfg, "最近の更新.html")
+    assert "更新日の新しい順・3 ページ" in lst
+    assert lst.index('href="s/e.html"') < lst.index('href="b.html"') < lst.index('href="c.html"')
+    assert '<time datetime="2026-08-08">' in lst and "a.html" not in lst and "d.html" not in lst
+    # トップの末尾には先頭 2 件と「もっと見る」。他のページには出ない
+    home = read(cfg, "index.html")
+    assert '<section class="recent">' in home and 'href="s/e.html"' in home and 'href="b.html"' in home and 'href="c.html"' not in home
+    assert 'href="最近の更新.html">もっと見る</a>' in home
+    assert '<section class="recent">' not in read(cfg, "a.html")
+    # フッターの導線と manifest
+    assert 'href="../最近の更新.html">最近の更新</a>' in read(cfg, "s/e.html")
+    outs = {p["out"] for p in __import__("json").loads(res.manifest_path.read_text(encoding="utf-8"))["pages"]}
+    assert "最近の更新.html" in outs
+
+
+def test_recent_on_auto_home_index(tmp_path):
+    """トップが index.md ではなく自動索引でも、末尾に出る。"""
+    cfg, res = run(tmp_path, {"a.md": DATED.format(m="2026-03-03") + "a"}, recent=5, recent_home=5)
+    home = read(cfg, "index.html")
+    assert '<section class="recent">' in home and 'href="a.html"' in home
+
+
+def test_recent_follows_ledger_dates(tmp_path):
+    """並びは frontmatter の modified ではなく、台帳の更新日（本文ハッシュが一致すれば台帳の日付）。"""
+    files = {"index.md": DATED.format(m="2026-01-01") + "入口", "a.md": DATED.format(m="2026-09-09") + "a", "b.md": DATED.format(m="2026-01-01") + "b"}
+    cfg = make_vault(tmp_path, files, recent=5, recent_home=5)
+    from biidama.vault import scan
+
+    pages = {p.rel: p for p in scan(cfg, [])}
+    cfg.state_dir.mkdir()
+    ledger = {"pages": {"a.md": {"hash": pages["a"].body_hash(), "updated": "2026-02-02"}, "b.md": {"hash": pages["b"].body_hash(), "updated": "2026-06-06"}}}
+    (cfg.state_dir / "ledger.json").write_text(__import__("json").dumps(ledger), encoding="utf-8")
+    res = build(cfg, log=lambda *_: None)
+    assert [p.rel for p in res.recent.pages] == ["b", "a"]
+
+
+def test_recent_zero_disables(tmp_path):
+    files = {"index.md": DATED.format(m="2026-01-01") + "入口", "a.md": DATED.format(m="2026-03-03") + "a"}
+    cfg, res = run(tmp_path, files, recent=0, recent_home=0)
+    assert res.recent is None and not (cfg.out / "最近の更新.html").exists()
+    assert "最近の更新" not in read(cfg, "index.html")
+    # 一覧ページは無しでトップにだけ出す（「もっと見る」は付かない）
+    cfg, res = run(tmp_path, files, recent=0, recent_home=3)
+    assert res.recent is None and not (cfg.out / "最近の更新.html").exists()
+    home = read(cfg, "index.html")
+    assert '<section class="recent">' in home and "もっと見る" not in home and "footer-recent" not in home
+
+
+def test_recent_name_is_reserved(tmp_path):
+    with pytest.raises(BuildError, match="最近の更新"):
+        run(tmp_path, {"index.md": PUB + "入口", "最近の更新.md": PUB + "x"})
+
+
+def test_recent_config_values(tmp_path):
+    (tmp_path / "v").mkdir()
+    cfgp = tmp_path / "c.yml"
+    cfgp.write_text("vault: ./v\nsite:\n  recent: 7\n  recent_home: 0\n", encoding="utf-8")
+    site = load_config(cfgp).site
+    assert (site.recent, site.recent_home) == (7, 0)
+    cfgp.write_text("vault: ./v\n", encoding="utf-8")
+    site = load_config(cfgp).site
+    assert (site.recent, site.recent_home) == (20, 5)
+    cfgp.write_text("vault: ./v\nsite:\n  recent: -1\n", encoding="utf-8")
+    with pytest.raises(BuildError, match="site.recent"):
+        load_config(cfgp)

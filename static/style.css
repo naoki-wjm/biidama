@@ -138,6 +138,11 @@ ruby rt { font-size: 0.5em; }
 .page-list { padding-left: 1.2em; }
 .page-list time { color: var(--muted); font-size: 0.85em; margin-left: 0.5em; }
 .tag-cloud { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4em 1em; }
+
+/* 最近の更新（トップの末尾） */
+.recent { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.recent h2 { font-size: 1.1em; margin: 0 0 0.5em; }
+.recent-more { text-align: right; font-size: 0.9em; margin: 0.3em 0 0; }
 .tag-cloud .count { color: var(--muted); font-size: 0.8em; }
 
 /* 上へ戻る（static/site.js が置く） */
