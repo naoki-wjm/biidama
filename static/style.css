@@ -109,4 +109,6 @@ ruby rt { font-size: 0.5em; }
 .page-list time { color: var(--muted); font-size: 0.85em; margin-left: 0.5em; }
 
 .site-footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
+.site-footer .made-with { float: right; font-size: 0.75rem; }
+.site-footer .made-with a { color: var(--muted); }
 .breadcrumb-bottom + .site-footer { margin-top: 0.5rem; }
