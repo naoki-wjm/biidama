@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import shutil
 from dataclasses import dataclass, field
@@ -89,6 +90,16 @@ def check_out_dir(cfg: Config) -> None:
         )
 
 
+def static_versions() -> dict[str, str]:
+    """static/ の各ファイル → 中身のハッシュ（先頭 8 桁）。URL に ?v= で付けて、変わった時だけ読み直させる。"""
+    versions: dict[str, str] = {}
+    if STATIC_DIR.is_dir():
+        for p in sorted(STATIC_DIR.rglob("*")):
+            if p.is_file():
+                versions[p.relative_to(STATIC_DIR).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()[:8]
+    return versions
+
+
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8", newline="\n")
@@ -150,6 +161,7 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     page_tpl = env.get_template("page.html")
     folder_tpl = env.get_template("folder.html")
     site = {"name": cfg.site.name, "url": cfg.site.url}
+    assets = static_versions()
 
     ctx = RenderContext(index=index, warnings=warnings)
     md = make_markdown(ctx)
@@ -170,6 +182,7 @@ def build(cfg: Config, *, log=print) -> BuildResult:
         updated[p.rel] = updated_date(p, ledger, today)
         html = page_tpl.render(
             site=site,
+            assets=assets,
             root=root_prefix(p.out_rel),
             page=p,
             body=body_html,
@@ -185,6 +198,7 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     for f in folders:
         html = folder_tpl.render(
             site=site,
+            assets=assets,
             root=root_prefix(f.out_rel),
             page=f,
             crumbs=breadcrumbs(f, folder_node),

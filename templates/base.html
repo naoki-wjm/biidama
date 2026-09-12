@@ -13,8 +13,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% if page.title == site.name %}{{ site.name }}{% else %}{{ page.title }} - {{ site.name }}{% endif %}</title>
-<link rel="stylesheet" href="{{ root }}static/style.css">
-<script src="{{ root }}static/lightbox.js" defer></script>
+<link rel="stylesheet" href="{{ root }}static/style.css?v={{ assets.get('style.css', '') }}">
+<script src="{{ root }}static/lightbox.js?v={{ assets.get('lightbox.js', '') }}" defer></script>
 </head>
 <body>
 <header class="site-header">
