@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "biidama"
+version = "0.1.0"
+description = "Obsidian の保管庫から publish: true のページだけを静的 HTML にする、自分用の生成器"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "markdown==3.10.3",
+    "jinja2==3.1.6",
+    "pyyaml==6.0.3",
+    "pymdown-extensions==11.0.2",
+]
+
+[project.optional-dependencies]
+test = ["pytest==9.1.1"]
+
+[project.scripts]
+biidama = "biidama.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["biidama*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

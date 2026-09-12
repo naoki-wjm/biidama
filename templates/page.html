@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block main %}
+<article>
+<h1 class="page-title">{{ page.title }}</h1>
+{% if created or updated %}
+<p class="page-meta page-dates">
+{% if created %}<span class="date">作成 <time datetime="{{ created }}">{{ created }}</time></span>{% endif %}
+{% if updated %}<span class="date">更新 <time datetime="{{ updated }}">{{ updated }}</time></span>{% endif %}
+</p>
+{% endif %}
+{% if tags %}
+<p class="page-meta page-tags">
+{% for t in tags %}<span class="tag">#{{ t }}</span> {% endfor %}
+</p>
+{% endif %}
+<div class="page-body">
+{{ body|safe }}
+</div>
+</article>
+{% if prev or next %}
+<nav class="series-nav" aria-label="前後のページ">
+<div class="series-nav-prev">{% if prev %}<a href="{{ prev.href }}" rel="prev">← 前のページ<br><small>{{ prev.title }}</small></a>{% endif %}</div>
+<div class="series-nav-next">{% if next %}<a href="{{ next.href }}" rel="next">次のページ →<br><small>{{ next.title }}</small></a>{% endif %}</div>
+</nav>
+{% endif %}
+{% endblock %}

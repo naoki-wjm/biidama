@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>記事A - 見本サイト</title>
+<link rel="stylesheet" href="../static/style.css">
+</head>
+<body>
+<header class="site-header">
+<a class="site-name" href="../index.html">見本サイト</a>
+</header>
+<nav class="breadcrumb breadcrumb-top" aria-label="場所">
+<ol>
+<li><a href="../雑記.html">雑記</a></li>
+</ol>
+</nav>
+
+<main>
+<article>
+<h1 class="page-title">記事A</h1>
+<p class="page-meta page-dates">
+<span class="date">作成 <time datetime="2026-01-03">2026-01-03</time></span><span class="date">更新 <time datetime="2026-03-01">2026-03-01</time></span></p>
+<p class="page-meta page-tags">
+<span class="tag">#雑記</span> <span class="tag">#見本</span> </p>
+<div class="page-body">
+<p>ファイル名と同じ H1 は落ちる。段落の中の<br>
+単改行は改行になる。</p>
+<h2 id="二つ目">二つ目</h2>
+<h3 id="二つ目-1">二つ目</h3>
+<p>同名見出しは -1 が付く。</p>
+<h2 id="code-とルビの見出し"><code>code</code> と<ruby>ルビ<rp>(</rp><rt>るび</rt><rp>)</rp></ruby>の見出し</h2>
+<h2 id="Callout">Callout</h2>
+<blockquote class="callout callout-warning">
+<p class="callout-title">注意の題</p>
+<p>半角スペースから始まる続き行。</p>
+</blockquote>
+<blockquote class="callout callout-note">
+<p class="callout-title">Note</p>
+<p>題が空なら種別名。</p>
+<p>二段落目。</p>
+</blockquote>
+<details class="callout callout-warning">
+<summary>折りたたみ（閉じている）</summary>
+<p>隠される本文。<ruby>隠<rp>(</rp><rt>かく</rt><rp>)</rp></ruby>れたルビ。<br>
+二行目</p>
+</details>
+<details class="callout callout-tip" open>
+<summary>折りたたみ（開いている）</summary>
+<p>開いた状態の本文。</p>
+</details>
+<blockquote>
+<p>ただの引用は<br>
+そのまま。</p>
+</blockquote>
+<blockquote>
+<p>引用の中のコード枠。</p>
+<pre><code class="language-JavaScript">let a = 10;</code></pre>
+<p>続きの文。</p>
+</blockquote>
+<h2 id="表">表</h2>
+<table>
+<thead>
+<tr>
+<th>見出し</th>
+<th>中身</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a class="internal" href="記事B.html">B へ</a></td>
+<td><ruby>漢字<rp>(</rp><rt>かんじ</rt><rp>)</rp></ruby></td>
+</tr>
+<tr>
+<td><code>code</code></td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<h2 id="コード">コード</h2>
+<pre><code class="language-python">print("言語つき")</code></pre>
+<pre><code>言語なし</code></pre>
+<ul>
+<li>リストの一行目<br>
+  続き行</li>
+<li>二つ目<ol>
+<li>入れ子</li>
+<li>入れ子</li>
+</ol>
+</li>
+</ul>
+<ol>
+<li>番号</li>
+<li>番号</li>
+</ol>
+<h2 id="強調と-HTML">強調と HTML</h2>
+<p><strong>太字</strong>と<em>斜体</em>と<span class="wjm" data-x="属性《こわさない》">属性</span>。</p>
+</div>
+</article>
+<nav class="series-nav" aria-label="前後のページ">
+<div class="series-nav-prev"></div>
+<div class="series-nav-next"><a href="記事B.html" rel="next">次のページ →<br><small>記事B</small></a></div>
+</nav>
+</main>
+<nav class="breadcrumb breadcrumb-bottom" aria-label="場所">
+<ol>
+<li><a href="../雑記.html">雑記</a></li>
+</ol>
+</nav>
+
+<footer class="site-footer">
+<a href="../index.html">見本サイト</a>
+</footer>
+</body>
+</html>

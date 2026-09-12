@@ -11,7 +11,51 @@ Obsidian の保管庫（黒曜石）から、公開と決めたページだけ�
 
 ## 状態
 
-2026-09 時点で設計と要求整理を終え、実装はこれからです。
+2026-09 時点で `build`（保管庫 → 静的 HTML）が動きます。`publish`（送信）と `prune`（遠隔の掃除）はこれからです。
+
+## 使い方
+
+```
+python -m venv .venv
+.venv/Scripts/pip install -r requirements.txt -e .
+cp config.example.yml config.local.yml   # 保管庫の場所・除外フォルダ・サイト名を書く
+biidama build -c config.local.yml        # out/ に HTML が出る
+```
+
+- 出力の URL は保管庫の相対パスそのまま＋ `.html`（`雑録/○○.html`）
+- 同名ノートの無いフォルダには索引ページを自動で作ります（`雑記.html` など）
+- 止まるのは、公開ページの frontmatter が壊れている・2ページが同じ出力先になる・basename が複数一致する・`![[埋め込み]]` や `#^ブロック参照` に出会った時。リンク切れや非公開ページへのリンクは注意を出して続けます
+- `.biidama/manifest.json` に「ページ一覧・出力先・本文ハッシュ」を書き出します。あとで `publish` がこれを読みます
+
+### 原稿側の約束
+
+- 公開するページに `publish: true`
+- 次のページは `next: "[[次のページ]]"`（前のページは逆引き）
+- ルビは `|親《かな》`・`｜親《かな》`・`漢字《かな》`
+- Callout は Obsidian の `> [!note]`。折りたたみ `> [!warning]-` は `<details>` になります
+- 表の中の wikilink の縦棒は `\|`（Obsidian と同じ）
+
+## 構成
+
+```
+biidama/          … 本体（config・vault・links・mdext・folders・build・cli）
+biidama/features/ … 分離した機能（ruby・series）
+templates/        … jinja2 雛型（base・page・folder）
+static/           … 公開側の CSS。そのまま out/static/ に複製
+tests/samples/    … 合成の試験片と期待 HTML（黄金テスト）
+tests/            … 止まるべき所で止まることの確認
+```
+
+依存は markdown・jinja2・pyyaml・pymdown-extensions（引用の中のコード枠のため。SuperFences だけ使用）。版は固定です。
+
+### 開発
+
+```
+.venv/Scripts/python -m pytest              # 試験
+BIIDAMA_UPDATE=1 .venv/Scripts/python -m pytest   # 期待 HTML を作り直す（差分を目で見てから）
+```
+
+`fixtures/`（.gitignore 済み）に実原稿の写しと設定を置くと、それも試験に使います。
 
 ## 自分用です
 

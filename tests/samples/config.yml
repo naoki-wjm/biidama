@@ -1,0 +1,8 @@
+vault: ./vault
+out: ./out
+state_dir: ./state
+exclude:
+  - 除外フォルダ
+site:
+  name: 見本サイト
+  url: https://example.com/

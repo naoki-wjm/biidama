@@ -1,0 +1,35 @@
+{% macro breadcrumb(crumbs, place) %}
+<nav class="breadcrumb breadcrumb-{{ place }}" aria-label="場所">
+<ol>
+{% for c in crumbs %}
+<li>{% if c.href %}<a href="{{ c.href }}">{{ c.title }}</a>{% else %}{{ c.title }}{% endif %}</li>
+{% endfor %}
+</ol>
+</nav>
+{% endmacro %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ page.title }} - {{ site.name }}</title>
+<link rel="stylesheet" href="{{ root }}static/style.css">
+</head>
+<body>
+<header class="site-header">
+<a class="site-name" href="{{ root }}index.html">{{ site.name }}</a>
+</header>
+{% if crumbs %}
+{{ breadcrumb(crumbs, "top") }}
+{% endif %}
+<main>
+{% block main %}{% endblock %}
+</main>
+{% if crumbs %}
+{{ breadcrumb(crumbs, "bottom") }}
+{% endif %}
+<footer class="site-footer">
+<a href="{{ root }}index.html">{{ site.name }}</a>
+</footer>
+</body>
+</html>

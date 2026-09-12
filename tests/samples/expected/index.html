@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>入口 - 見本サイト</title>
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<header class="site-header">
+<a class="site-name" href="index.html">見本サイト</a>
+</header>
+<main>
+<article>
+<h1 class="page-title">入口</h1>
+<p class="page-meta page-dates">
+<span class="date">作成 <time datetime="2026-01-10">2026-01-10</time></span><span class="date">更新 <time datetime="2026-02-01">2026-02-01</time></span></p>
+<div class="page-body">
+<p><ruby>見本<rp>(</rp><rt>みほん</rt><rp>)</rp></ruby>サイトの<ruby>入口<rp>(</rp><rt>いりぐち</rt><rp>)</rp></ruby>です。全角の<ruby>親文字<rp>(</rp><rt>おやもじ</rt><rp>)</rp></ruby>と、縦棒なしの<ruby>漢字<rp>(</rp><rt>かんじ</rt><rp>)</rp></ruby><ruby>連続<rp>(</rp><rt>れんぞく</rt><rp>)</rp></ruby>も読めます。</p>
+<h2 id="リンクの形">リンクの形</h2>
+<ul>
+<li>裸: <a class="internal" href="雑記/記事A.html">記事A</a></li>
+<li>表示名: <a class="internal" href="雑記/記事A.html">A の記事</a></li>
+<li>パス: <a class="internal" href="雑記/記事A.html">雑記/記事A</a></li>
+<li>パス＋表示名: <a class="internal" href="雑記/記事B.html">B の記事</a></li>
+<li>見出し: <a class="internal" href="雑記/記事A.html#二つ目">記事A#二つ目</a></li>
+<li>見出し＋表示名: <a class="internal" href="雑記/記事A.html#二つ目">二つ目へ</a></li>
+<li>パス＋見出し＋表示名: <a class="internal" href="雑記/記事A.html#二つ目">パスと見出し</a></li>
+<li>同名見出しの2つ目は先頭一致になる: <a class="internal" href="雑記/記事A.html#二つ目">記事A#二つ目</a></li>
+<li>フォルダ索引: <a class="internal" href="雑記.html">雑記</a></li>
+<li>ハブ note: <a class="internal" href="小説.html">小説</a></li>
+<li>無いページ: <span class="unresolved-link">存在しない</span></li>
+<li>非公開のページ: <span class="unresolved-link">下書き（非公開）</span></li>
+<li>拡張子つき: <a class="internal" href="雑記/記事A.html">記事A.md</a></li>
+</ul>
+<h2 id="自動リンク">自動リンク</h2>
+<p><a href="https://example.com/path/ページ?q=1">https://example.com/path/ページ?q=1</a>。<br>
+文中の <a href="https://example.com/a">https://example.com/a</a> （括弧の前で止まる）と、既存のリンク <a href="https://example.com/b">example</a> は二重にしない。</p>
+<h2 id="そのまま通すもの">そのまま通すもの</h2>
+<p><a href="https://example.com/img/1.jpg" data-lightbox="g" data-title="一枚目"><img src="https://example.com/img/1.jpg" width="150" /></a> <a href="https://example.com/img/2.jpg" data-lightbox="g" data-title="二枚目"><img src="https://example.com/img/2.jpg" width="150" /></a></p>
+<!-- コメントはそのまま残る -->
+
+<p><img alt="代替文" src="https://example.com/img/3.jpg"></p>
+<p>code span の中は触らない: <code>[[記事A]]</code> と <code>漢字《かな》</code> と <code>https://example.com/c</code></p>
+<p>#タグだけの行<br>
+#もう一つ 空白のある行</p>
+<p>#見出しではない（空白なし）</p>
+</div>
+</article>
+</main>
+<footer class="site-footer">
+<a href="index.html">見本サイト</a>
+</footer>
+</body>
+</html>

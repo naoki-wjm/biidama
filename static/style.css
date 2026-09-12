@@ -1,0 +1,98 @@
+/* biidama 薄い CSS。本文幅・ルビ・Callout・メディアの幅制限だけ。デザインは未決 */
+
+:root {
+  color-scheme: light dark;
+  --fg: #222;
+  --bg: #fdfdfb;
+  --muted: #666;
+  --line: #ddd;
+  --link: #1a5fb4;
+  --callout-bg: #f2f4f8;
+  --callout-line: #9aa7c2;
+  --warning-bg: #fff6e5;
+  --warning-line: #e0a040;
+  --code-bg: #f4f4f2;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e6e6e3;
+    --bg: #1c1c1e;
+    --muted: #a0a0a0;
+    --line: #3a3a3c;
+    --link: #8ab4f8;
+    --callout-bg: #26292f;
+    --callout-line: #5b6a8c;
+    --warning-bg: #332a1a;
+    --warning-line: #b98430;
+    --code-bg: #2a2a2d;
+  }
+}
+
+html {
+  font-family: serif;
+  font-size: 16px;
+  /* iPhone の Safari が横向きで勝手に文字を拡大するのを止める */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  color: var(--fg);
+  background: var(--bg);
+  line-height: 1.9;
+  padding: 0 1rem 3rem;
+}
+main, .site-header, .breadcrumb, .site-footer {
+  max-width: 40rem; /* rem: 各部の文字の大きさに左右されない（em だとフッターが縮む） */
+  margin-left: auto;
+  margin-right: auto;
+}
+a { color: var(--link); }
+.site-header { padding: 1rem 0; border-bottom: 1px solid var(--line); }
+.site-name { font-weight: bold; text-decoration: none; }
+.breadcrumb ol { list-style: none; padding: 0; margin: 0.5rem 0; font-size: 0.9rem; color: var(--muted); }
+.breadcrumb li { display: inline; }
+.breadcrumb li + li::before { content: " / "; }
+.breadcrumb-bottom { margin-top: 2rem; padding-top: 0.5rem; border-top: 1px solid var(--line); }
+.page-title { font-size: 1.5rem; line-height: 1.4; }
+.page-meta { color: var(--muted); font-size: 0.85rem; margin: 0.2em 0; }
+.page-meta .date + .date { margin-left: 0.8em; }
+.page-meta .tag { margin-right: 0.5em; }
+.page-body p { margin: 0 0 1em; }
+/* 幅は画面に収める。height="18" のような原稿側の指定は殺さない（width と height の両方がある時だけ比率を守る） */
+.page-body img, .page-body video, .page-body audio, .page-body iframe { max-width: 100%; }
+.page-body img[width][height], .page-body video[width][height] { height: auto; }
+.page-body iframe { aspect-ratio: 16 / 9; width: 100%; }
+.page-body table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; }
+.page-body th, .page-body td { border: 1px solid var(--line); padding: 0.2em 0.6em; }
+.page-body pre { background: var(--code-bg); padding: 0.8em; overflow-x: auto; line-height: 1.5; }
+.page-body code { font-family: monospace; font-size: 0.9em; }
+.page-body :not(pre) > code { background: var(--code-bg); padding: 0 0.3em; }
+.page-body blockquote { margin: 1em 0; padding: 0 1em; border-left: 3px solid var(--line); color: var(--muted); }
+.page-body hr { border: 0; border-top: 1px solid var(--line); margin: 2em 0; }
+ruby rt { font-size: 0.5em; }
+.unresolved-link { border-bottom: 1px dotted var(--muted); }
+
+/* Callout */
+.callout {
+  margin: 1em 0;
+  padding: 0.6em 1em;
+  border-left: 3px solid var(--callout-line);
+  background: var(--callout-bg);
+  color: var(--fg);
+}
+.callout-title, .callout > summary { font-weight: bold; margin: 0 0 0.4em; }
+.callout > summary { cursor: pointer; }
+.callout-warning, .callout-caution, .callout-danger { background: var(--warning-bg); border-left-color: var(--warning-line); }
+
+/* 前後ナビ */
+.series-nav { display: flex; justify-content: space-between; gap: 1rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.series-nav > div { flex: 1; }
+.series-nav-next { text-align: right; }
+.series-nav small { color: var(--muted); }
+
+/* フォルダ索引 */
+.page-list { padding-left: 1.2em; }
+.page-list time { color: var(--muted); font-size: 0.85em; margin-left: 0.5em; }
+
+.site-footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }

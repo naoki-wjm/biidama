@@ -1,0 +1,21 @@
+# biidama の設定（見本）。実物は config.local.yml に置く（.gitignore 済み）
+#   python -m biidama build -c config.local.yml
+
+# 保管庫の場所（Obsidian の vault のルート）
+vault: /path/to/vault
+
+# 出力先（相対パスは設定ファイルの場所から）
+out: ./out
+
+# 走査前にまるごと除外するフォルダ（保管庫ルートからの相対パス）
+# 非公開しかないフォルダを列挙して走査を軽くする。ここに無くても publish: true が無ければ出ない
+exclude:
+  - .obsidian
+  - .trash
+  - templates
+
+site:
+  # 見出しとタブに出るサイト名
+  name: サイト名
+  # サイトの URL（末尾スラッシュ）。今は記録用で、出力には使わない
+  url: https://example.com/

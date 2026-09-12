@@ -27,3 +27,11 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+
+# 試験用の原稿複製と期待 HTML（保管庫の写し。リポに入れない）
+fixtures/
+
+# pip install -e の副産物と、見本を手で build した時の出力
+*.egg-info/
+tests/samples/out/
+tests/samples/state/
