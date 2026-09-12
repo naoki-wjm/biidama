@@ -1,11 +1,13 @@
 """python-markdown の組み立て。Obsidian の原稿を壊さず通すための拡張をまとめる。
 
 処理の順番（python-markdown の優先度は大きいほど先）:
-  pre:    行頭の全角スペースを実体参照に逃がす（22。コード退避 25 の後）→ post で戻す
-  block:  見出しの regex を「# の後に空白必須」に差し替え（#タグ の行を見出しにしない）
+  pre:    コード枠の退避（superfences 25）→ 行頭の全角スペースを目印に逃がす（22）→ html ブロック退避（20）
+  block:  見出しの regex を「# の後に空白必須」に差し替え（#タグ の行を見出しにしない）／引用を合流させない
   tree:   Callout（25）→ inline（20）→ 見出し id と H1 落とし（15）
-  inline: 埋め込み検出（176）→ wikilink（175）→ code span（190 で退避済み）
-          → 生 HTML 退避（90）→ ルビ（85）→ 裸 URL（88）→ nl2br（5）
+  inline: code span（190）→ エスケープ（180）→ 参照・リンク・画像（170〜150）→ 生 HTML 退避（90）
+          → 裸 URL（88）→ ルビ（85）→ 埋め込み検出（76）→ wikilink（75）→ nl2br（5）
+          wikilink と裸 URL は生 HTML 退避より後なので、タグや属性の中の文字は触らない
+  post:   全角スペースの目印を戻す（5）
 """
 
 from __future__ import annotations
@@ -55,7 +57,35 @@ def unstash(md, text: str) -> str:
 
     text = INLINE_STASH_RE.sub(inline_node, text)
     text = HTML_STASH_RE.sub(lambda m: TAG_RE.sub("", str(md.htmlStash.rawHtmlBlocks[int(m.group(1))])), text)
-    return ESCAPE_RE.sub(lambda m: chr(int(m.group(1))), text)
+    text = ESCAPE_RE.sub(lambda m: chr(int(m.group(1))), text)
+    return text.replace(ZENKAKU_MARK, IDEOGRAPHIC_SPACE)
+
+
+def raw_html_before(md, data: str) -> list[str]:
+    """data の中に退避されている生 HTML（inline 段階）を、出現順に元の文字列で返す。"""
+    found: list[str] = []
+    for m in INLINE_STASH_RE.finditer(data):
+        node = md.treeprocessors["inline"].stashed_nodes.get(m.group(1))
+        if isinstance(node, str):
+            h = HTML_STASH_RE.fullmatch(node)
+            if h:
+                found.append(str(md.htmlStash.rawHtmlBlocks[int(h.group(1))]))
+    return found
+
+
+OPEN_A_RE = re.compile(r"<a[\s>]", re.I)
+CLOSE_A_RE = re.compile(r"</a\s*>", re.I)
+
+
+def inside_raw_anchor(md, data: str) -> bool:
+    """この位置より前で、生 HTML の <a> が開いたまま閉じていないか。"""
+    depth = 0
+    for raw in raw_html_before(md, data):
+        if OPEN_A_RE.match(raw):
+            depth += 1
+        elif CLOSE_A_RE.match(raw):
+            depth = max(0, depth - 1)
+    return depth > 0
 
 
 # ---- inline ---------------------------------------------------------------
@@ -108,12 +138,17 @@ class AutoLinkInline(InlineProcessor):
     TRAIL = ".,;:!?)]}。、」』】）"
 
     def __init__(self, md):
-        super().__init__(r"(?<![\w\"'=/(])(https?://[^\s<>\"'）」『』【】]+)", md)
+        # 退避の目印（\x02 \x03）の手前で止める。生 HTML は先に退避済みなのでタグや属性は含まれない
+        super().__init__(r"(?<![\w\"'=/])(https?://[^\s<>\"'）」『』【】\x02\x03]+)", md)
 
     def handleMatch(self, m, data):
+        if inside_raw_anchor(self.md, data[: m.start(1)]):
+            return None, None, None  # 生 HTML の <a> の中。二重リンクにしない
         url = m.group(1)
         end = m.end(1)
         while url and url[-1] in self.TRAIL:
+            if url[-1] == ")" and url.count("(") >= url.count(")"):
+                break  # 対応する開き括弧がある閉じ括弧は URL の一部
             url = url[:-1]
             end -= 1
         el = etree.Element("a")
@@ -125,12 +160,14 @@ class AutoLinkInline(InlineProcessor):
 # ---- pre / post -------------------------------------------------------------
 
 IDEOGRAPHIC_SPACE = "　"
-LEADING_ZENKAKU_RE = re.compile(r"^((?:[ \t]{0,3}>)*[ \t]{0,3})　", re.M)
-ZENKAKU_MARK = "&#x3000;"
+# 引用記号とリスト記号の後も対象。4 スペース以上（字下げコード）は対象外
+LEADING_ZENKAKU_RE = re.compile(r"^((?:[ \t]{0,3}>)*[ \t]{0,3}(?:(?:[-*+]|\d+[.)])[ \t]{1,3})?)　", re.M)
+# 目印は私用領域の一文字。実体参照 &#x3000; を目印にすると生 HTML の中にある同じ文字列まで戻してしまう
+ZENKAKU_MARK = ""
 
 
 class KeepLeadingZenkakuSpace(Preprocessor):
-    """行頭（引用記号の後も含む）の全角スペースを実体参照に逃がす。
+    """行頭（引用記号・リスト記号の後も含む）の全角スペースを目印に逃がす。
 
     python-markdown は段落の先頭を str.lstrip() で削り、Python は全角スペースも空白扱いなので
     小説の字下げが消える。コード枠は先に退避されているので届かない（4スペース字下げも除外）。
@@ -268,8 +305,9 @@ class BiidamaExtension(Extension):
         # superfences のコード退避（25）の後、html ブロック退避（20）の前
         md.preprocessors.register(KeepLeadingZenkakuSpace(md), "biidama_zenkaku", 22)
         md.postprocessors.register(RestoreZenkakuSpace(md), "biidama_zenkaku_restore", 5)
-        md.inlinePatterns.register(EmbedGuard(self.ctx, md), "biidama_embed_guard", 176)
-        md.inlinePatterns.register(WikiLinkInline(self.ctx, md), "biidama_wikilink", 175)
+        # 生 HTML 退避（90）より後ろに置き、タグや属性の中の [[ ]] を触らない（純正 wikilinks 拡張と同じ位置）
+        md.inlinePatterns.register(EmbedGuard(self.ctx, md), "biidama_embed_guard", 76)
+        md.inlinePatterns.register(WikiLinkInline(self.ctx, md), "biidama_wikilink", 75)
         md.inlinePatterns.register(AutoLinkInline(md), "biidama_autolink", 88)
         ruby.register(md)
         md.treeprocessors.register(CalloutTree(md), "biidama_callout", 25)

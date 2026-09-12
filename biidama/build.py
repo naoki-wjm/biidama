@@ -40,12 +40,17 @@ def make_env() -> Environment:
     )
 
 
+RESERVED_PREFIXES = ("static/",)  # 出力側で使う名前。原稿のフォルダ名と衝突させない
+
+
 def check_out_collisions(nodes: list[Node]) -> None:
     seen: dict[str, str] = {}
     for n in nodes:
         key = n.out_rel.lower()  # Windows と多くのホスティングは大文字小文字を区別しない
         if key in seen:
             raise BuildError(f"2つのページが同じ出力先になります: {seen[key]} と {n.rel}")
+        if key.startswith(RESERVED_PREFIXES):
+            raise BuildError(f"フォルダ名 static は出力側で使うので原稿には使えません: {n.rel}")
         seen[key] = n.rel
 
 
@@ -72,6 +77,9 @@ def check_out_dir(cfg: Config) -> None:
         raise BuildError(f"出力先が保管庫を含んでいます（消えます）: {out}")
     if out.is_relative_to(vault):
         raise BuildError(f"出力先が保管庫の中です: {out}")
+    state = cfg.state_dir.resolve()
+    if state == out or state.is_relative_to(out):
+        raise BuildError(f"台帳の置き場（state_dir）が出力先の中にあります。build のたびに消えます: {state}")
     if out.exists() and not out.is_dir():
         raise BuildError(f"出力先がフォルダではありません: {out}")
     if out.exists() and any(out.iterdir()) and not (out / ".biidama-out").exists():
@@ -148,14 +156,12 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     today = dt.date.today()
 
     check_out_dir(cfg)
-    if cfg.out.exists():
-        shutil.rmtree(cfg.out)
-    cfg.out.mkdir(parents=True)
-    (cfg.out / ".biidama-out").write_text("biidama build の出力先の目印。次の build でこのフォルダは消して作り直されます。\n", encoding="utf-8")
 
     def link(from_node: Node, to: Node | None) -> str | None:
         return relative_href(from_node.out_rel, to.out_rel) if to else None
 
+    # 失敗しうる変換をすべて先に済ませ、成功した時だけ旧出力を消して書き出す
+    outputs: list[tuple[str, str]] = []
     for p in pages:
         body_html = render_body(md, ctx, p, p.title, p.body)
         nav = navs[p.rel]
@@ -171,7 +177,7 @@ def build(cfg: Config, *, log=print) -> BuildResult:
             prev={"title": nav.prev.title, "href": link(p, nav.prev)} if nav.prev else None,
             next={"title": nav.next.title, "href": link(p, nav.next)} if nav.next else None,
         )
-        write_text(cfg.out / p.out_rel, html)
+        outputs.append((p.out_rel, html))
 
     for f in folders:
         html = folder_tpl.render(
@@ -189,8 +195,17 @@ def build(cfg: Config, *, log=print) -> BuildResult:
                 for s in f.subfolders
             ],
         )
-        write_text(cfg.out / f.out_rel, html)
+        outputs.append((f.out_rel, html))
 
+    try:
+        if cfg.out.exists():
+            shutil.rmtree(cfg.out)
+        cfg.out.mkdir(parents=True)
+    except OSError as e:
+        raise BuildError(f"出力先を作り直せません（別のプログラムが開いていませんか）: {cfg.out}: {e}") from e
+    (cfg.out / ".biidama-out").write_text("biidama build の出力先の目印。次の build でこのフォルダは消して作り直されます。\n", encoding="utf-8")
+    for out_rel, html in outputs:
+        write_text(cfg.out / out_rel, html)
     if STATIC_DIR.is_dir():
         shutil.copytree(STATIC_DIR, cfg.out / "static")
 

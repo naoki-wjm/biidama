@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,7 +15,8 @@ from . import BuildError
 from .config import Config
 
 FRONTMATTER_RE = re.compile(r"\A﻿?---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.S)
-PUBLISH_LINE_RE = re.compile(r"^publish:\s*true\s*$", re.M)
+OPENING_RE = re.compile(r"\A﻿?---[ \t]*\r?\n")
+PUBLISH_LINE_RE = re.compile(r"^publish:\s*true\b", re.M)  # 後ろにコメントが付いていても拾う
 
 
 @dataclass
@@ -71,6 +73,8 @@ def split_frontmatter(text: str) -> tuple[dict | None, str, bool]:
     """(frontmatter, 本文, 破損か) を返す。frontmatter が無ければ ({}, 全文, False)。"""
     m = FRONTMATTER_RE.match(text)
     if not m:
+        if OPENING_RE.match(text):
+            return None, text, True  # 開きの --- があるのに閉じが無い＝閉じ忘れ。黙って非公開にしない
         return {}, text.lstrip("﻿"), False
     body = text[m.end():]
     try:
@@ -102,8 +106,11 @@ def load_page(src: Path, rel: str, warnings: list[str]) -> Page | None:
     text = src.read_text(encoding="utf-8")
     fm, body, broken = split_frontmatter(text)
     if broken:
-        if PUBLISH_LINE_RE.search(text[:2000]):
-            raise BuildError(f"公開ページの frontmatter が読めません: {rel}.md")
+        # 壊れた frontmatter の候補範囲（閉じがあればそこまで、無ければ全文）に publish: true があれば止める
+        m = FRONTMATTER_RE.match(text)
+        candidate = m.group(1) if m else text
+        if PUBLISH_LINE_RE.search(candidate):
+            raise BuildError(f"公開ページの frontmatter が読めません（YAML の誤りか閉じ忘れ）: {rel}.md")
         warnings.append(f"frontmatter が読めないので飛ばしました（非公開扱い）: {rel}.md")
         return None
     if fm.get("publish") is not True:
@@ -116,18 +123,33 @@ def load_page(src: Path, rel: str, warnings: list[str]) -> Page | None:
     return page
 
 
+def walk_markdown(vault: Path, exclude: list[str]) -> list[Path]:
+    """除外フォルダと隠しフォルダには入らず枝を切って .md を集める（並びはパス順）。"""
+    excluded = set(exclude)
+    found: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(vault):
+        here = Path(dirpath)
+        rel_dir = here.relative_to(vault).as_posix() if here != vault else ""
+        keep = []
+        for d in dirnames:
+            rel = f"{rel_dir}/{d}" if rel_dir else d
+            if d.startswith(".") or rel in excluded:
+                continue
+            keep.append(d)
+        dirnames[:] = keep
+        for f in filenames:
+            if f.endswith(".md"):
+                rel = f"{rel_dir}/{f}" if rel_dir else f
+                if rel not in excluded:
+                    found.append(here / f)
+    return sorted(found, key=lambda p: p.relative_to(vault).as_posix())
+
+
 def scan(cfg: Config, warnings: list[str]) -> list[Page]:
     """保管庫を歩き、除外フォルダを飛ばして公開ページを集める。"""
-    excluded = tuple(cfg.exclude)
     pages: list[Page] = []
-    for src in sorted(cfg.vault.rglob("*.md")):
-        rel_path = src.relative_to(cfg.vault).as_posix()
-        parts = rel_path.split("/")
-        if any(p.startswith(".") for p in parts[:-1]):
-            continue
-        if any(rel_path == ex or rel_path.startswith(ex + "/") for ex in excluded):
-            continue
-        rel = rel_path[:-3]
+    for src in walk_markdown(cfg.vault, cfg.exclude):
+        rel = src.relative_to(cfg.vault).as_posix()[:-3]
         page = load_page(src, rel, warnings)
         if page is not None:
             pages.append(page)
