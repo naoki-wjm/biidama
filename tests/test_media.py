@@ -73,9 +73,9 @@ def test_config_media_forms(tmp_path):
 def test_image_embed_with_thumbnail_and_lightbox(tmp_path):
     cfg, res = run(tmp_path, {"index.md": PUB + "![[絵.png|150]]", "メディア/a/絵.png": "@png"})
     html = read(cfg, "index.html")
-    assert '<a data-lightbox="index" href="メディア/a/絵.png"><img alt="" loading="lazy" src="メディア/a/絵.thumb.webp" width="150"></a>' in html
+    assert '<a data-lightbox="index" href="メディア/a/絵.png"><img alt="" loading="lazy" src="メディア/a/絵.png.thumb.webp" width="150"></a>' in html
     assert (cfg.out / "メディア/a/絵.png").is_file()
-    with Image.open(cfg.out / "メディア/a/絵.thumb.webp") as im:
+    with Image.open(cfg.out / "メディア/a/絵.png.thumb.webp") as im:
         assert im.size == (200, 100)
     assert res.warnings == []
 
@@ -91,13 +91,13 @@ def test_thumbnail_cache_is_reused(tmp_path):
     build(cfg, log=messages.append)
     assert cached[0].stat().st_mtime_ns == stamp
     assert not any("縮小版を" in m for m in messages)
-    assert (cfg.out / "メディア/絵.thumb.webp").is_file()
+    assert (cfg.out / "メディア/絵.png.thumb.webp").is_file()
 
 
 def test_thumbnail_off_uses_original(tmp_path):
     cfg, _ = run(tmp_path, {"index.md": PUB + "![[絵.png]]", "メディア/絵.png": "@png"}, MediaConfig(dir="メディア", thumbnail=0))
     assert 'src="メディア/絵.png"' in read(cfg, "index.html")
-    assert not (cfg.out / "メディア/絵.thumb.webp").exists()
+    assert not (cfg.out / "メディア/絵.png.thumb.webp").exists()
 
 
 def test_without_pillow_warns_and_uses_original(tmp_path, monkeypatch):
@@ -164,14 +164,14 @@ def test_unknown_kind_stops(tmp_path):
         run(tmp_path, files)
 
 
-def test_thumbnail_name_collision_stops(tmp_path):
-    files = {"index.md": PUB + "x", "メディア/絵.png": "@png", "メディア/絵.jpg": "@png"}
-    with pytest.raises(BuildError, match="縮小版の名前が重なります"):
-        run(tmp_path, files)
+def test_same_stem_different_ext_both_get_thumbnails(tmp_path):
+    files = {"index.md": PUB + "![[絵.png]] ![[絵.jpg]]", "メディア/絵.png": "@png", "メディア/絵.jpg": "@png"}
+    cfg, _ = run(tmp_path, files)
+    assert (cfg.out / "メディア/絵.png.thumb.webp").is_file() and (cfg.out / "メディア/絵.jpg.thumb.webp").is_file()
 
 
 def test_thumb_suffix_in_vault_stops(tmp_path):
-    files = {"index.md": PUB + "x", "メディア/絵.thumb.webp": b"RIFF"}
+    files = {"index.md": PUB + "x", "メディア/絵.png.thumb.webp": b"RIFF"}
     with pytest.raises(BuildError, match="thumb.webp"):
         run(tmp_path, files)
 
@@ -186,4 +186,4 @@ def test_embed_inside_raw_html_is_left_alone(tmp_path):
     files = {"index.md": PUB + '<span title="![[絵.png]]">x</span>', "メディア/絵.png": "@png"}
     cfg, _ = run(tmp_path, files)
     assert 'title="![[絵.png]]"' in read(cfg, "index.html")
-    assert not (cfg.out / "メディア/絵.thumb.webp").exists()
+    assert not (cfg.out / "メディア/絵.png.thumb.webp").exists()

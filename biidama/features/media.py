@@ -6,7 +6,7 @@
   ![[曲.mp3]] / ![[動.mp4]] … <audio controls> / <video controls>
 
 解決は wikilink と同じ流儀（パスならパス、無ければ basename の一意表。複数一致は止める）。
-縮小版は長辺を media.thumbnail px までに縮めた WebP を「絵.thumb.webp」の名で元画像の隣に置く。
+縮小版は長辺を media.thumbnail px までに縮めた WebP を「絵.png.thumb.webp」の名で元画像の隣に置く（拡張子違いの同名画像があっても重ならない）。
 Pillow は任意の追加（pip install .[thumbnail]）。無ければ一度だけ注意して元画像をそのまま表示する。
 作った縮小版は state_dir/thumbs に元の中身のハッシュ名で溜め、元が変わらない限り作り直さない。
 """
@@ -53,7 +53,7 @@ class MediaFile:
 
     @property
     def thumb_rel(self) -> str:
-        return os.path.splitext(self.rel)[0] + THUMB_SUFFIX
+        return self.rel + THUMB_SUFFIX
 
 
 @dataclass(frozen=True)
@@ -119,14 +119,6 @@ class MediaIndex:
                 self.by_rel[rel] = f
                 self.by_rel.setdefault(rel[len(self.dir) + 1 :], f)  # メディアのフォルダからの相対でも引ける
                 self.by_base[name].append(f)
-        # 縮小版の名前が二つの元画像で重なる（絵.png と 絵.jpg）と後勝ちになるので止める
-        thumb_names: dict[str, str] = {}
-        for f in self.files:
-            if f.ext in THUMB_EXTS:
-                key = f.thumb_rel.lower()
-                if key in thumb_names:
-                    raise BuildError(f"縮小版の名前が重なります（拡張子だけ違う同名の画像）: {thumb_names[key]} と {f.rel}")
-                thumb_names[key] = f.rel
 
     def resolve(self, target: str) -> MediaFile | None:
         t = target.strip().strip("/")
