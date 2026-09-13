@@ -57,7 +57,9 @@ def test_parse_embed():
 def test_config_media_forms(tmp_path):
     assert load_media(None) == MediaConfig()
     assert load_media("素材") == MediaConfig(dir="素材")
-    assert load_media({"dir": "/素材/", "thumbnail": 0}) == MediaConfig(dir="素材", thumbnail=0)
+    assert load_media({"dir": "素材/", "thumbnail": 0}) == MediaConfig(dir="素材", thumbnail=0)
+    with pytest.raises(BuildError, match="media.dir"):
+        load_media({"dir": "/素材/"})  # 先頭の / は絶対パスとして断る（第4回査読）
     with pytest.raises(BuildError, match="media.thumbnail"):
         load_media({"dir": "x", "thumbnail": -1})
     with pytest.raises(BuildError, match="media.quality"):

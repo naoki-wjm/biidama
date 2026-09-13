@@ -25,12 +25,13 @@
       if (value) localStorage.setItem(key, value);
       else localStorage.removeItem(key);
     } catch (e) {
-      /* プライベートモード等。記憶できないだけで表示は変わる */
+      /* プライベートモード等。記憶できないだけで、このページの中では切り替わる */
     }
   }
+  // いまの選択はページの中の変数で持つ。保存は最善努力（読めなくても書けなくても、押せば変わる）
+  var theme = read(THEME_KEY);
+  var font = read(FONT_KEY);
   function apply() {
-    var theme = read(THEME_KEY);
-    var font = read(FONT_KEY);
     if (theme) root.setAttribute("data-theme", theme);
     else root.removeAttribute("data-theme");
     if (font) root.setAttribute("data-font", font);
@@ -50,27 +51,27 @@
     fontBtn.className = "pref-btn pref-font";
 
     function label() {
-      var t = read(THEME_KEY);
       var cur = THEMES[0];
-      for (var i = 0; i < THEMES.length; i++) if (THEMES[i].value === t) cur = THEMES[i];
+      for (var i = 0; i < THEMES.length; i++) if (THEMES[i].value === theme) cur = THEMES[i];
       themeBtn.textContent = cur.short;
       themeBtn.title = "テーマ: " + cur.label + "（押すと切り替え）";
       themeBtn.setAttribute("aria-label", themeBtn.title);
-      var mincho = read(FONT_KEY) === "mincho";
+      var mincho = font === "mincho";
       fontBtn.textContent = mincho ? "明" : "ゴ";
       fontBtn.title = "書体: " + (mincho ? "明朝" : "ゴシック") + "（押すと切り替え）";
       fontBtn.setAttribute("aria-label", fontBtn.title);
     }
     themeBtn.addEventListener("click", function () {
-      var t = read(THEME_KEY);
       var i = 0;
-      for (var k = 0; k < THEMES.length; k++) if (THEMES[k].value === t) i = k;
-      write(THEME_KEY, THEMES[(i + 1) % THEMES.length].value);
+      for (var k = 0; k < THEMES.length; k++) if (THEMES[k].value === theme) i = k;
+      theme = THEMES[(i + 1) % THEMES.length].value;
+      write(THEME_KEY, theme);
       apply();
       label();
     });
     fontBtn.addEventListener("click", function () {
-      write(FONT_KEY, read(FONT_KEY) === "mincho" ? "" : "mincho");
+      font = font === "mincho" ? "" : "mincho";
+      write(FONT_KEY, font);
       apply();
       label();
     });

@@ -54,19 +54,36 @@ RESERVED_FILES = (TAG_DIR + ".html", RECENT_NAME + ".html")
 
 
 def check_out_collisions(nodes: list[Node], media_dir: str = "") -> None:
+    """原稿由来のページ・フォルダ索引が、互いに・予約名と衝突しないか（出力を消す前に止める）。"""
     seen: dict[str, str] = {}
     prefixes = RESERVED_PREFIXES + ((media_dir.lower() + "/",) if media_dir else ())
+    files = RESERVED_FILES + ((media_dir.lower() + ".html",) if media_dir else ())  # メディアと同名のノートも予約
     for n in nodes:
         key = n.out_rel.lower()  # Windows と多くのホスティングは大文字小文字を区別しない
         if key in seen:
             raise BuildError(f"2つのページが同じ出力先になります: {seen[key]} と {n.rel}")
-        if key.startswith(prefixes) or key in RESERVED_FILES:
+        if key.startswith(prefixes) or key in files:
             raise BuildError(
                 f"フォルダ名・ノート名 static・{TAG_DIR}・{RECENT_NAME}"
                 + (f"・{media_dir}（メディアのフォルダ）" if media_dir else "")
                 + f" は出力側で使うので原稿には使えません: {n.rel}"
             )
         seen[key] = n.rel
+
+
+def check_outputs(outputs: list[tuple[str, str]], out: Path) -> None:
+    """生成物すべて（タグページ・一覧も含む）の出力先が、互いに重ならず、出力フォルダの中に収まるか。
+    タグ名は原稿の文字列がそのままパスになるので、ここで最後に確かめる。"""
+    seen: dict[str, str] = {}
+    root = out.resolve()
+    for out_rel, _ in outputs:
+        key = out_rel.lower()
+        if key in seen:
+            raise BuildError(f"2つの生成物が同じ出力先になります（大文字小文字の違いも同じ扱い）: {seen[key]} と {out_rel}")
+        seen[key] = out_rel
+        target = (root / out_rel).resolve()
+        if not target.is_relative_to(root):
+            raise BuildError(f"出力先が出力フォルダの外を指しています: {out_rel}")
 
 
 def breadcrumbs(node: Node, folder_node: dict[str, Node]) -> list[dict]:
@@ -212,7 +229,8 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     updated: dict[str, dt.date | None] = {p.rel: updated_date(p, ledger, today) for p in pages}
     # 最近の更新: 一覧ページ（site.recent 件）とトップの末尾（site.recent_home 件）。どちらも 0 なら無し
     recent = make_recent(pages, updated, max(cfg.site.recent, cfg.site.recent_home))
-    recent_page = recent if cfg.site.recent > 0 else None
+    # 一覧ページは site.recent 件に切り詰める（トップ側の件数が一覧に漏れないように）
+    recent_page = RecentList(pages=recent.head(cfg.site.recent), dates=recent.dates) if recent and cfg.site.recent > 0 else None
     site["has_recent"] = recent_page is not None
 
     check_out_dir(cfg)
@@ -302,6 +320,10 @@ def build(cfg: Config, *, log=print) -> BuildResult:
         )
         outputs.append((recent_page.out_rel, html))
 
+    # 失敗しうるものはここまでに全部済ませる: 生成物の衝突・範囲の検査、縮小版の生成（壊れた画像はここで止まる）
+    check_outputs(outputs, cfg.out)
+    media.prepare_thumbnails(log=log)
+
     try:
         if cfg.out.exists():
             shutil.rmtree(cfg.out)
@@ -314,7 +336,7 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     if STATIC_DIR.is_dir():
         shutil.copytree(STATIC_DIR, cfg.out / "static")
     media_count = media.copy_to(cfg.out)
-    media.write_thumbnails(cfg.out, log=log)
+    media.write_thumbnails(cfg.out)
 
     manifest = {
         "biidama": __version__,

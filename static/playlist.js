@@ -94,7 +94,7 @@
       '<div class="pl-header">♫ Playlist</div>' +
       '<div class="pl-nowplaying"><div class="pl-title"></div><div class="pl-artist"></div></div>' +
       '<div class="pl-seekbar-wrap">' +
-      '<div class="pl-seekbar" role="slider" aria-label="再生位置"><div class="pl-seekbar-fill"></div></div>' +
+      '<input type="range" class="pl-seekbar" min="0" max="1000" step="1" value="0" aria-label="再生位置">' +
       '<div class="pl-time"><span class="pl-time-current">0:00</span><span class="pl-time-duration">0:00</span></div>' +
       "</div>" +
       '<div class="pl-controls">' +
@@ -112,8 +112,8 @@
     var audio = el.querySelector(".pl-audio");
     var titleEl = el.querySelector(".pl-title");
     var artistEl = el.querySelector(".pl-artist");
-    var seekbar = el.querySelector(".pl-seekbar");
-    var seekFill = el.querySelector(".pl-seekbar-fill");
+    var seekbar = el.querySelector(".pl-seekbar"); // 標準の range（キーボードの矢印でも動かせる）
+    var seeking = false; // つまみを掴んでいる間は timeupdate で位置を上書きしない
     var timeCurrentEl = el.querySelector(".pl-time-current");
     var timeDurationEl = el.querySelector(".pl-time-duration");
     var btnPlay = el.querySelector(".pl-btn-play");
@@ -169,7 +169,7 @@
       audio.load();
       titleEl.textContent = track.title;
       artistEl.textContent = track.artist;
-      seekFill.style.width = "0%";
+      seekbar.value = "0";
       timeCurrentEl.textContent = "0:00";
       timeDurationEl.textContent = "0:00";
       errorEl.textContent = "";
@@ -211,7 +211,8 @@
 
     // 曲一覧
     tracks.forEach(function (track, i) {
-      var item = document.createElement("div");
+      var item = document.createElement("button"); // button なので Tab で辿れて Enter／Space で選べる
+      item.type = "button";
       item.className = "pl-item";
       var num = document.createElement("span");
       num.className = "pl-item-num";
@@ -269,19 +270,26 @@
     volumeSlider.addEventListener("input", function () {
       audio.volume = parseFloat(volumeSlider.value);
     });
-    seekbar.addEventListener("click", function (e) {
+    // シーク: つまみを動かしている間は表示だけ追従し、離した時（change）に再生位置を移す。
+    // キーボードの矢印は input と change が同時に来るので、その場で移る
+    seekbar.addEventListener("pointerdown", function () { seeking = true; });
+    seekbar.addEventListener("input", function () {
       if (!audio.duration || !isFinite(audio.duration)) return;
-      var rect = seekbar.getBoundingClientRect();
-      var x = (e.clientX - rect.left) / rect.width;
-      audio.currentTime = Math.max(0, Math.min(1, x)) * audio.duration;
+      timeCurrentEl.textContent = formatTime((seekbar.value / 1000) * audio.duration);
+    });
+    seekbar.addEventListener("change", function () {
+      seeking = false;
+      if (!audio.duration || !isFinite(audio.duration)) return;
+      audio.currentTime = (seekbar.value / 1000) * audio.duration;
     });
 
     // <audio> の状態を表示に映す（ボタン以外の経路で止まった時もここで揃う）
     audio.addEventListener("play", updatePlayButton);
     audio.addEventListener("pause", updatePlayButton);
     audio.addEventListener("timeupdate", function () {
+      if (seeking) return;
       if (audio.duration && isFinite(audio.duration)) {
-        seekFill.style.width = (audio.currentTime / audio.duration) * 100 + "%";
+        seekbar.value = String(Math.round((audio.currentTime / audio.duration) * 1000));
       }
       timeCurrentEl.textContent = formatTime(audio.currentTime);
     });

@@ -89,7 +89,11 @@ def load_media(raw) -> MediaConfig:
         raw = {"dir": raw}
     if not isinstance(raw, dict):
         raise BuildError(f"設定 media はフォルダ名か dir/thumbnail/quality の組で書いてください: {raw!r}")
-    d = str(raw.get("dir") or "").strip().strip("/").replace("\\", "/")
+    given = str(raw.get("dir") or "").strip().replace("\\", "/")
+    d = given.strip("/")
+    # 保管庫の中のフォルダ名だけを受ける。`.`・`..`・絶対パス・ドライブ指定は保管庫の外や保管庫そのものを指せるので断る
+    if given and (given.startswith("/") or ":" in given or any(seg in ("", ".", "..") for seg in d.split("/"))):
+        raise BuildError(f"設定 media.dir は保管庫の中のフォルダ名で書いてください（`.`・`..`・絶対パスは不可）: {raw.get('dir')!r}")
 
     def number(key: str, default: int, low: int, high: int) -> int:
         v = raw.get(key, default)

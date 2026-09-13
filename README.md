@@ -45,7 +45,7 @@ biidama publish -c config.local.yml             # 変わったファイルだけ
 - ルビは `|親《かな》`・`｜親《かな》`・`漢字《かな》`
 - Callout は Obsidian の `> [!note]`。折りたたみ `> [!warning]-` は `<details>` になります
 - 表の中の wikilink の縦棒は `\|`（Obsidian と同じ）
-- 画像・音源・動画は保管庫の中のメディアのフォルダ（設定 `media.dir`。例 `メディア/`）に置き、`![[絵.png]]` で埋め込みます。`![[絵.png|300]]`・`![[絵.png|300x200]]`・`![[絵.png|x120]]`（高さだけ）は大きさ、`![[絵.png|説明]]` は alt と lightbox の題（Obsidian と同じ読み方）。同じページの画像は lightbox の一つの組になります。手書きの `<a data-lightbox><img></a>` もそのまま通ります
+- 画像・音源・動画は保管庫の中のメディアのフォルダ（設定 `media.dir`。例 `メディア/`）に置き、`![[絵.png]]` で埋め込みます。`![[絵.png|300]]`・`![[絵.png|300x200]]`・`![[絵.png|x120]]`（高さだけ）は大きさ、`![[絵.png|説明]]` は alt と lightbox の題（Obsidian と同じ読み方。説明に `|` や `]]` は書けません。幅と高さの両方を書いても CSS が比率を守るので、実際に効くのは幅です）。同じページの画像は lightbox の一つの組になります。手書きの `<a data-lightbox><img></a>` もそのまま通ります
 - 縮小版は長辺 `media.thumbnail` px（既定 1200）までに縮めた WebP を `絵.png.thumb.webp` の名（元の名前＋`.thumb.webp`）で元画像の隣に出します（gif・svg は元のまま）。作った縮小版は `.biidama/thumbs/` に溜め、元が変わらなければ作り直しません。Pillow が無い時は注意を出して元画像をそのまま表示します
 
 ## 構成

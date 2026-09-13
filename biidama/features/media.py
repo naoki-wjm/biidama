@@ -100,18 +100,24 @@ class MediaIndex:
         self.thumbs = cfg.media.thumbnail > 0
         if self.root is None:
             return
-        if not self.root.is_dir():
+        # 実体で境界を確かめる（設定の文字列だけでは `.`・`..`・絶対パスで保管庫の外や保管庫そのものを指せてしまう）
+        vault = cfg.vault.resolve()
+        root = self.root.resolve()
+        if root == vault or not root.is_relative_to(vault):
+            raise BuildError(f"設定 media.dir は保管庫の中のフォルダを指してください（保管庫そのものや外は不可）: {self.dir}")
+        if not root.is_dir():
             raise BuildError(f"設定 media.dir のフォルダが保管庫にありません: {self.dir}")
+        self.root = root
         if self.thumbs and not pillow_available():
             warnings.append("Pillow が無いので縮小版は作らず、元画像をそのまま表示します（pip install .[thumbnail] で入ります）")
             self.thumbs = False
-        for dirpath, dirnames, filenames in os.walk(self.root):
+        for dirpath, dirnames, filenames in os.walk(root):
             dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
             for name in sorted(filenames):
                 if name.startswith("."):
                     continue
                 src = Path(dirpath) / name
-                rel = src.relative_to(cfg.vault).as_posix()
+                rel = src.relative_to(vault).as_posix()
                 if rel.lower().endswith(THUMB_SUFFIX):
                     raise BuildError(f"{THUMB_SUFFIX} で終わる名前は縮小版に使うのでメディアには置けません: {rel}")
                 f = MediaFile(rel=rel, src=src)
@@ -155,8 +161,9 @@ class MediaIndex:
             shutil.copyfile(f.src, dst)
         return len(self.files)
 
-    def write_thumbnails(self, out: Path, log=print) -> int:
-        """埋め込みで使った画像の縮小版を出力へ置く。溜め場に同じものがあれば作らない。作った数を返す。"""
+    def prepare_thumbnails(self, log=print) -> int:
+        """埋め込みで使った画像の縮小版を溜め場に作る（旧出力を消す前に呼ぶ。壊れた画像はここで止まる）。作った数を返す。"""
+        self.prepared: dict[str, Path] = {}
         if not self.wanted:
             return 0
         cache = self.cfg.state_dir / "thumbs"
@@ -170,25 +177,37 @@ class MediaIndex:
             if not cached.is_file():
                 make_thumbnail(f.src, cached, self.cfg.media.thumbnail, self.cfg.media.quality)
                 made += 1
-            dst = out / f.thumb_rel
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(cached, dst)
+            self.prepared[rel] = cached
         if made:
             log(f"縮小版を {made} 枚作りました（使った画像 {len(self.wanted)} 枚）")
         return made
+
+    def write_thumbnails(self, out: Path) -> int:
+        """prepare_thumbnails で溜めた縮小版を出力へ複製する。"""
+        prepared = getattr(self, "prepared", None)
+        if prepared is None:
+            raise BuildError("縮小版は prepare_thumbnails の後で書き出してください")
+        for rel, cached in prepared.items():
+            dst = out / self.by_rel[rel].thumb_rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(cached, dst)
+        return len(prepared)
 
 
 def make_thumbnail(src: Path, dst: Path, max_edge: int, quality: int) -> None:
     from PIL import Image, ImageOps
 
+    tmp = dst.with_suffix(".part")
     try:
         with Image.open(src) as im:
             im = ImageOps.exif_transpose(im)  # スマホ写真の向きを画素に焼き込む
             mode = "RGBA" if ("A" in im.getbands() or im.mode == "P" and "transparency" in im.info) else "RGB"
             im = im.convert(mode)
             im.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)  # 元より小さい絵は拡大しない
-            tmp = dst.with_suffix(".part")
             im.save(tmp, "WEBP", quality=quality, method=4)
+        os.replace(tmp, dst)
     except OSError as e:
         raise BuildError(f"画像が読めないので縮小版を作れません: {src}: {e}") from e
-    os.replace(tmp, dst)
+    finally:
+        if tmp.exists():  # 途中で失敗した書きかけは残さない
+            tmp.unlink()

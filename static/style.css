@@ -173,8 +173,7 @@ ruby rt { font-size: 0.5em; }
 .pl-title { font-size: 1.05em; font-weight: bold; line-height: 1.4; }
 .pl-artist { font-size: 0.78em; color: var(--muted); margin-top: 2px; }
 .pl-seekbar-wrap { padding: 4px 16px; }
-.pl-seekbar { width: 100%; height: 6px; background: var(--line); border-radius: 3px; cursor: pointer; position: relative; overflow: hidden; }
-.pl-seekbar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.15s linear; }
+.pl-seekbar { display: block; width: 100%; margin: 0; accent-color: var(--accent); cursor: pointer; } /* 標準の range。矢印キーでも動く */
 .pl-time { display: flex; justify-content: space-between; font-size: 0.68em; color: var(--muted); margin-top: 2px; font-family: monospace; }
 .pl-controls { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 4px 16px 8px; }
 .pl-btn { background: none; border: none; cursor: pointer; padding: 6px; margin: 0; line-height: 1; color: var(--muted); display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
@@ -186,7 +185,8 @@ ruby rt { font-size: 0.5em; }
 .pl-error { text-align: center; font-size: 0.75em; color: #c44; padding: 0 16px; }
 .pl-error:not(:empty) { padding-bottom: 6px; }
 .pl-list { border-top: 1px solid var(--line); max-height: 220px; overflow-y: auto; }
-.pl-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; cursor: pointer; border-left: 3px solid transparent; transition: background 0.2s, border-color 0.2s; }
+.pl-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 16px; cursor: pointer; border: 0; border-left: 3px solid transparent; background: none; color: inherit; font: inherit; text-align: left; transition: background 0.2s, border-color 0.2s; } /* button だが行の見た目のまま */
+.pl-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .pl-item.current { background: rgba(128, 128, 128, 0.14); border-left-color: var(--accent); }
 .pl-item-num { font-size: 0.72em; color: var(--muted); min-width: 1.5em; text-align: right; font-family: monospace; }
 .pl-item.current .pl-item-num { color: var(--accent); }
