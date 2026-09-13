@@ -1,6 +1,10 @@
 vault: ./vault
 out: ./out
 state_dir: ./state
+media:
+  dir: メディア
+  thumbnail: 1200
+  quality: 80
 exclude:
   - 除外フォルダ
 site:

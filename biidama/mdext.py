@@ -4,7 +4,7 @@
   pre:    コード枠の退避（superfences 25）→ 行頭の全角スペースを目印に逃がす（22）→ html ブロック退避（20）
   block:  見出しの regex を「# の後に空白必須」に差し替え（#タグ の行を見出しにしない）／引用を合流させない
   tree:   Callout（25）→ inline（20）→ 見出し id と H1 落とし（15）
-  inline: code span（190）→ エスケープ（180）→ 埋め込み検出（176）→ wikilink（175）
+  inline: code span（190）→ エスケープ（180）→ 埋め込み（176）→ wikilink（175）
           → 参照・リンク・画像（170〜150）→ 生 HTML 退避（90）→ 裸 URL（88）→ ルビ（85）→ nl2br（5）
           埋め込み検出と wikilink は生 HTML 退避より先なので、タグや属性の中は inside_tag で自分で避ける
   post:   全角スペースの目印を戻す（5）。目印はページごとに原文に無い文字を選ぶ（40 の前処理で決める）
@@ -26,6 +26,7 @@ from markdown.treeprocessors import Treeprocessor
 
 from . import BuildError
 from .features import ruby
+from .features.media import MediaIndex, parse_embed
 from .links import LinkIndex, Node, parse_wikilink, relative_href, slugify_heading
 
 
@@ -35,6 +36,7 @@ class RenderContext:
 
     index: LinkIndex
     warnings: list[str]
+    media: MediaIndex | None = None  # 無ければ ![[ ]] は止まる
     page: Node | None = None
     title: str = ""
     seen_ids: set[str] = field(default_factory=set)
@@ -134,8 +136,12 @@ def inside_tag(data: str, pos: int) -> bool:
     return in_tag or in_comment
 
 
-class EmbedGuard(InlineProcessor):
-    """![[埋め込み]] は未対応。黙って崩さず止める。"""
+class EmbedInline(InlineProcessor):
+    """![[埋め込み]]。メディアのフォルダの中の画像・音源・動画だけ受ける（ノートの埋め込みは未対応）。
+
+    画像は表示用（縮小版があればそれ）を <img> にし、元画像への <a data-lightbox> で包む。
+    組の名前はページ（同じページの画像を前後に送れる）。alt は lightbox の題にもなる。
+    """
 
     def __init__(self, ctx: RenderContext, md):
         super().__init__(r"!\[\[([^\[\]]*)\]\]", md)
@@ -144,7 +150,46 @@ class EmbedGuard(InlineProcessor):
     def handleMatch(self, m, data):
         if inside_tag(data, m.start(0)):
             return None, None, None
-        raise BuildError(f"埋め込み ![[{m.group(1)}]] は未対応です: {self.ctx.page.rel}.md")
+        inner = unstash(self.md, m.group(1))
+        page = self.ctx.page
+        where = f"{page.rel}.md" if page else "?"
+        media = self.ctx.media
+        if media is None or media.root is None:
+            raise BuildError(f"埋め込み ![[{inner}]] を使うには設定 media.dir（メディアのフォルダ）が要ります: {where}")
+        spec = parse_embed(inner)
+        f = media.resolve(spec.target)
+        if f is None:
+            raise BuildError(f"埋め込みの先がメディアのフォルダ（{media.dir}/）にありません: {where} → ![[{inner}]]")
+        href = relative_href(page.out_rel, f.rel)
+        if f.kind == "image":
+            a = etree.Element("a")
+            a.set("href", href)
+            a.set("data-lightbox", page.rel)
+            if spec.alt:
+                a.set("data-title", spec.alt)
+            img = etree.SubElement(a, "img")
+            img.set("src", relative_href(page.out_rel, media.display_rel(f)))
+            img.set("alt", spec.alt)
+            if spec.width:
+                img.set("width", spec.width)
+            if spec.height:
+                img.set("height", spec.height)
+            img.set("loading", "lazy")
+            return a, m.start(0), m.end(0)
+        if f.kind == "audio":
+            el = etree.Element("audio")
+            el.set("controls", "controls")
+            el.set("preload", "metadata")
+            el.set("src", href)
+            return el, m.start(0), m.end(0)
+        if f.kind == "video":
+            el = etree.Element("video")
+            el.set("controls", "controls")
+            el.set("playsinline", "playsinline")
+            el.set("preload", "metadata")
+            el.set("src", href)
+            return el, m.start(0), m.end(0)
+        raise BuildError(f"埋め込み ![[{inner}]] の種類（{f.ext}）は未対応です: {where}")
 
 
 class WikiLinkInline(InlineProcessor):
@@ -369,7 +414,7 @@ class BiidamaExtension(Extension):
         md.preprocessors.register(KeepLeadingZenkakuSpace(md), "biidama_zenkaku", 22)
         md.postprocessors.register(RestoreZenkakuSpace(md), "biidama_zenkaku_restore", 5)
         # Markdown のリンク・参照（170〜150）やルビ（85）に食われる前に認識する。生 HTML の中は inside_tag で避ける
-        md.inlinePatterns.register(EmbedGuard(self.ctx, md), "biidama_embed_guard", 176)
+        md.inlinePatterns.register(EmbedInline(self.ctx, md), "biidama_embed", 176)
         md.inlinePatterns.register(WikiLinkInline(self.ctx, md), "biidama_wikilink", 175)
         md.preprocessors.register(PickZenkakuMark(md), "biidama_zenkaku_mark", 40)
         md.inlinePatterns.register(AutoLinkInline(md), "biidama_autolink", 88)

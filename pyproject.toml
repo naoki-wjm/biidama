@@ -18,7 +18,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest==9.1.1"]
+thumbnail = ["pillow==12.3.0"]  # 画像の縮小版（無ければ元画像をそのまま表示）
+test = ["pytest==9.1.1", "pillow==12.3.0"]
 
 [project.scripts]
 biidama = "biidama.cli:main"

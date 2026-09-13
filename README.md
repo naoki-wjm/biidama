@@ -11,7 +11,7 @@ Obsidian の保管庫（黒曜石）から、公開と決めたページだけ�
 
 ## 状態
 
-2026-09 時点で `build`（保管庫 → 静的 HTML）と `publish`（変わったファイルだけ送信）・`prune`（抜け殻の掃除）が動きます。lightbox（`<a data-lightbox="組" data-title="題"><img></a>` の lightbox2 互換記法）・playlist（`<div class="playlist">` の中に `<audio controls src data-title data-artist>` を並べる）・タグページ（`タグ.html` と `タグ/<名前>.html` を自動生成。原稿側で `タグ` の名前は予約）・OGP（frontmatter の `description`、無ければ本文の先頭。設定の `site.icon` に `static/` の中の画像を書けば OGP 画像・ファビコン・ヘッダーの印にも使う。絵はリポに入れない。`site.theme_color` でブラウザの枠の色、`site.head_extra` で作者宣言などの行を head にそのまま入れられる）・コード枠の色付け（Pygments）・読者のテーマ／書体切替と「上へ戻る」（`static/site.js`）・「最近の更新」の一覧（`最近の更新.html`。台帳の更新日で新しい順。トップページの末尾にも数件出す。件数は設定の `site.recent` と `site.recent_home`、0 で無し）が入っています。
+2026-09 時点で `build`（保管庫 → 静的 HTML）と `publish`（変わったファイルだけ送信）・`prune`（抜け殻の掃除）が動きます。lightbox（`<a data-lightbox="組" data-title="題"><img></a>` の lightbox2 互換記法）・playlist（`<div class="playlist">` の中に `<audio controls src data-title data-artist>` を並べる）・タグページ（`タグ.html` と `タグ/<名前>.html` を自動生成。原稿側で `タグ` の名前は予約）・OGP（frontmatter の `description`、無ければ本文の先頭。設定の `site.icon` に `static/` の中の画像を書けば OGP 画像・ファビコン・ヘッダーの印にも使う。絵はリポに入れない。`site.theme_color` でブラウザの枠の色、`site.head_extra` で作者宣言などの行を head にそのまま入れられる）・コード枠の色付け（Pygments）・読者のテーマ／書体切替と「上へ戻る」（`static/site.js`）・「最近の更新」の一覧（`最近の更新.html`。台帳の更新日で新しい順。トップページの末尾にも数件出す。件数は設定の `site.recent` と `site.recent_home`、0 で無し）・メディア（保管庫の中の `media.dir` のフォルダをそのまま出力へ複製。`![[絵.png]]` は縮小版を表示して押すと元画像を lightbox で開く。`![[曲.mp3]]`・`![[動.mp4]]` は `<audio>`・`<video>`）が入っています。
 
 ## 使い方
 
@@ -27,8 +27,8 @@ biidama publish -c config.local.yml             # 変わったファイルだけ
 
 - 出力の URL は保管庫の相対パスそのまま＋ `.html`（`雑録/○○.html`）
 - 同名ノートの無いフォルダには索引ページを自動で作ります（`雑記.html` など）
-- `タグ`・`最近の更新`・`static` は出力側で使う名前なので、原稿のフォルダ名・ノート名には使えません（同名があれば止まります）
-- 止まるのは、公開ページの frontmatter が壊れている・2ページが同じ出力先になる・basename が複数一致する・`![[埋め込み]]` や `#^ブロック参照` に出会った時。リンク切れや非公開ページへのリンクは注意を出して続けます
+- `タグ`・`最近の更新`・`static`・メディアのフォルダ名（`media.dir`）は出力側で使う名前なので、原稿のフォルダ名・ノート名には使えません（同名があれば止まります）
+- 止まるのは、公開ページの frontmatter が壊れている・2ページが同じ出力先になる・basename が複数一致する・`![[ ]]` の先がメディアのフォルダに無い（ノートの埋め込みも同じ）・`#^ブロック参照` に出会った時。リンク切れや非公開ページへのリンクは注意を出して続けます
 - `.biidama/manifest.json` に「ページ一覧・出力先・本文ハッシュ」を書き出します
 
 ### publish と prune
@@ -45,6 +45,8 @@ biidama publish -c config.local.yml             # 変わったファイルだけ
 - ルビは `|親《かな》`・`｜親《かな》`・`漢字《かな》`
 - Callout は Obsidian の `> [!note]`。折りたたみ `> [!warning]-` は `<details>` になります
 - 表の中の wikilink の縦棒は `\|`（Obsidian と同じ）
+- 画像・音源・動画は保管庫の中のメディアのフォルダ（設定 `media.dir`。例 `メディア/`）に置き、`![[絵.png]]` で埋め込みます。`![[絵.png|300]]`・`![[絵.png|300x200]]` は大きさ、`![[絵.png|説明]]` は alt と lightbox の題（Obsidian と同じ読み方）。同じページの画像は lightbox の一つの組になります。手書きの `<a data-lightbox><img></a>` もそのまま通ります
+- 縮小版は長辺 `media.thumbnail` px（既定 1200）までに縮めた WebP を `絵.thumb.webp` の名で元画像の隣に出します（gif・svg は元のまま）。作った縮小版は `.biidama/thumbs/` に溜め、元が変わらなければ作り直しません。Pillow が無い時は注意を出して元画像をそのまま表示します
 
 ## 構成
 
@@ -52,20 +54,21 @@ biidama publish -c config.local.yml             # 変わったファイルだけ
 biidama/          … 本体（config・vault・links・mdext・folders・build・publish・cli）
 biidama/tags.py   … タグページの自動生成
 biidama/recent.py … 「最近の更新」の一覧（台帳の更新日で並べる）
-biidama/features/ … 分離した機能（ruby・series）
+biidama/features/ … 分離した機能（ruby・series・media）
 templates/        … jinja2 雛型（base・page・folder・tag・tags・recent・_recent＝トップ末尾の部品）
 static/           … 公開側の CSS（style.css・pygments.css）と site.js・lightbox.js・playlist.js。そのまま out/static/ に複製
 tests/samples/    … 合成の試験片と期待 HTML（黄金テスト）
 tests/            … 止まるべき所で止まることの確認
 ```
 
-依存は 5 本。版は固定です（`requirements.txt`・`pyproject.toml`）。
+依存は 5 本＋任意の 1 本。版は固定です（`requirements.txt`・`pyproject.toml`）。
 
 - markdown … Markdown → HTML の本体
 - jinja2 … 雛型
 - pyyaml … 設定と frontmatter
 - pymdown-extensions … 引用の中のコード枠（SuperFences）と、コード枠の色付けの受け口（highlight）
 - pygments … コード枠の色付け（色は `static/pygments.css`）
+- pillow（任意。`pip install .[thumbnail]`）… 画像の縮小版。無くても動く（縮小版を作らないだけ）
 
 試験には pytest を使います（`pip install -e .[test]`）。
 

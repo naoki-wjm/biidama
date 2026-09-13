@@ -15,6 +15,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from . import BuildError, __version__
 from .config import Config
+from .features.media import MediaIndex
 from .features.series import compute_nav
 from .folders import FolderIndex, make_folder_indexes
 from .links import LinkIndex, Node, relative_href, root_prefix
@@ -52,14 +53,19 @@ RESERVED_PREFIXES = ("static/", TAG_DIR + "/")  # 出力側で使う名前。原
 RESERVED_FILES = (TAG_DIR + ".html", RECENT_NAME + ".html")
 
 
-def check_out_collisions(nodes: list[Node]) -> None:
+def check_out_collisions(nodes: list[Node], media_dir: str = "") -> None:
     seen: dict[str, str] = {}
+    prefixes = RESERVED_PREFIXES + ((media_dir.lower() + "/",) if media_dir else ())
     for n in nodes:
         key = n.out_rel.lower()  # Windows と多くのホスティングは大文字小文字を区別しない
         if key in seen:
             raise BuildError(f"2つのページが同じ出力先になります: {seen[key]} と {n.rel}")
-        if key.startswith(RESERVED_PREFIXES) or key in RESERVED_FILES:
-            raise BuildError(f"フォルダ名・ノート名 static・{TAG_DIR}・{RECENT_NAME} は出力側で使うので原稿には使えません: {n.rel}")
+        if key.startswith(prefixes) or key in RESERVED_FILES:
+            raise BuildError(
+                f"フォルダ名・ノート名 static・{TAG_DIR}・{RECENT_NAME}"
+                + (f"・{media_dir}（メディアのフォルダ）" if media_dir else "")
+                + f" は出力側で使うので原稿には使えません: {n.rel}"
+            )
         seen[key] = n.rel
 
 
@@ -171,8 +177,9 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     folders, folder_node = make_folder_indexes(pages)
     tag_indexes, tag_list = make_tag_indexes(pages)
     nodes: list[Node] = [*pages, *folders]
-    check_out_collisions(nodes)
+    check_out_collisions(nodes, cfg.media.dir)
     index = LinkIndex(nodes)  # タグページは wikilink の解決先にしない
+    media = MediaIndex(cfg, warnings)  # ![[ ]] の解決先。media.dir が空なら埋め込みは止まる
     tag_node: dict[str, TagIndex] = {t.tag: t for t in tag_indexes}
     navs = compute_nav(pages, index, warnings)
 
@@ -198,7 +205,7 @@ def build(cfg: Config, *, log=print) -> BuildResult:
         "has_tags": tag_list is not None,
     }
 
-    ctx = RenderContext(index=index, warnings=warnings)
+    ctx = RenderContext(index=index, warnings=warnings, media=media)
     md = make_markdown(ctx)
     ledger = load_ledger(cfg)
     today = dt.date.today()
@@ -306,6 +313,8 @@ def build(cfg: Config, *, log=print) -> BuildResult:
         write_text(cfg.out / out_rel, html)
     if STATIC_DIR.is_dir():
         shutil.copytree(STATIC_DIR, cfg.out / "static")
+    media_count = media.copy_to(cfg.out)
+    media.write_thumbnails(cfg.out, log=log)
 
     manifest = {
         "biidama": __version__,
@@ -323,5 +332,5 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     manifest_path = cfg.state_dir / "manifest.json"
     write_text(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=1))
 
-    log(f"ページ {len(pages)} 枚、フォルダ索引 {len(folders)} 枚、タグ {len(tag_indexes)} 種 → {cfg.out}")
+    log(f"ページ {len(pages)} 枚、フォルダ索引 {len(folders)} 枚、タグ {len(tag_indexes)} 種、メディア {media_count} 点 → {cfg.out}")
     return BuildResult(pages=pages, folders=folders, tags=tag_indexes, recent=recent_page, warnings=warnings, manifest_path=manifest_path, updated=updated)
