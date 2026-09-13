@@ -95,6 +95,7 @@ a { color: var(--link); }
 .page-meta .tag { margin-right: 0.5em; }
 a.tag { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
 a.tag:hover { color: var(--link); border-bottom-color: var(--link); }
+.page-body { margin-top: 1.5rem; } /* 題・日付・タグの帯と本文の間。本文が地の文（特にルビつき）で始まる時に窮屈にならないように */
 .page-body p { margin: 0 0 1em; }
 /* 幅は画面に収める。height="18" のような原稿側の指定は殺さない（width と height の両方がある時だけ比率を守る） */
 .page-body img, .page-body video, .page-body audio, .page-body iframe { max-width: 100%; }
