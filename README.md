@@ -11,7 +11,7 @@ Obsidian の保管庫（黒曜石）から、公開と決めたページだけ�
 
 ## 状態
 
-2026-09 時点で `build`（保管庫 → 静的 HTML）と `publish`（変わったファイルだけ送信）・`prune`（抜け殻の掃除）が動きます。lightbox（`<a data-lightbox="組" data-title="題"><img></a>` の lightbox2 互換記法）・playlist（`<div class="playlist">` の中に `<audio controls src data-title data-artist>` を並べる）・タグページ（`タグ.html` と `タグ/<名前>.html` を自動生成。原稿側で `タグ` の名前は予約）・OGP（frontmatter の `description`、無ければ本文の先頭。設定の `site.icon` に `static/` の中の画像を書けば OGP 画像・ファビコン・ヘッダーの印にも使う。絵はリポに入れない。`site.theme_color` でブラウザの枠の色、`site.head_extra` で作者宣言などの行を head にそのまま入れられる）・コード枠の色付け（Pygments）・読者のテーマ／書体切替と「上へ戻る」（`static/site.js`）・「最近の更新」の一覧（`最近の更新.html`。台帳の更新日で新しい順。トップページの末尾にも数件出す。件数は設定の `site.recent` と `site.recent_home`、0 で無し）・メディア（保管庫の中の `media.dir` のフォルダをそのまま出力へ複製。`![[絵.png]]` は縮小版を表示して押すと元画像を lightbox で開く。`![[曲.mp3]]`・`![[動.mp4]]` は `<audio>`・`<video>`）が入っています。
+2026-09 時点で `build`（保管庫 → 静的 HTML）と `publish`（変わったファイルだけ送信）・`prune`（抜け殻の掃除）が動きます。lightbox（`<a data-lightbox="組" data-title="題" data-alt="開いた絵の alt"><img></a>` の lightbox2 互換記法。`data-alt` は省略可で、絵の中の文字の写しなどに）・playlist（`<div class="playlist">` の中に `<audio controls src data-title data-artist>` を並べる）・タグページ（`タグ.html` と `タグ/<名前>.html` を自動生成。原稿側で `タグ` の名前は予約）・OGP（frontmatter の `description`、無ければ本文の先頭。設定の `site.icon` に `static/` の中の画像を書けば OGP 画像・ファビコン・ヘッダーの印にも使う。絵はリポに入れない。`site.theme_color` でブラウザの枠の色、`site.head_extra` で作者宣言などの行を head にそのまま入れられる）・コード枠の色付け（Pygments）・読者のテーマ／書体切替と「上へ戻る」（`static/site.js`）・「最近の更新」の一覧（`最近の更新.html`。台帳の更新日で新しい順。トップページの末尾にも数件出す。件数は設定の `site.recent` と `site.recent_home`、0 で無し）・メディア（保管庫の中の `media.dir` のフォルダをそのまま出力へ複製。`![[絵.png]]` は縮小版を表示して押すと元画像を lightbox で開く。`![[曲.mp3]]`・`![[動.mp4]]` は `<audio>`・`<video>`）が入っています。
 
 ## 使い方
 

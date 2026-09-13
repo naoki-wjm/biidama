@@ -32,7 +32,7 @@
       var item = items[index];
       if (!item) return;
       img.src = item.href;
-      img.alt = item.title;
+      img.alt = item.alt || item.title;
       caption.textContent = item.title;
       caption.style.display = item.title ? "" : "none";
     }
@@ -73,7 +73,8 @@
     var selector = 'a[data-lightbox="' + (window.CSS && CSS.escape ? CSS.escape(group) : group) + '"]';
     var anchors = Array.prototype.slice.call(document.querySelectorAll(selector));
     var items = anchors.map(function (a) {
-      return { href: a.href, title: a.getAttribute("data-title") || "" };
+      // data-alt は開いた絵の alt（絵の中の文字の写しなど。lightbox2 と同じ扱い）。無ければ題を alt に
+      return { href: a.href, title: a.getAttribute("data-title") || "", alt: a.getAttribute("data-alt") || "" };
     });
     openLightbox(items, Math.max(0, anchors.indexOf(anchor)));
   });
