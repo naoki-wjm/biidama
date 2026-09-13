@@ -50,6 +50,8 @@ def test_parse_embed():
     assert parse_embed("絵.png|300x200") == Embed("絵.png", "", "300", "200")
     assert parse_embed("絵.png|説明") == Embed("絵.png", "説明", "", "")
     assert parse_embed("絵.png|説明|120") == Embed("絵.png", "説明", "120", "")
+    assert parse_embed("絵.png|x120") == Embed("絵.png", "", "", "120")
+    assert parse_embed("絵.png|x") == Embed("絵.png", "x", "", "")
 
 
 def test_config_media_forms(tmp_path):

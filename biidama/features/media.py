@@ -1,7 +1,7 @@
 """メディア（画像・音源・動画）: 保管庫の中のフォルダをそのまま出力へ複製し、![[絵.png]] の埋め込みを解決する。
 
   ![[絵.png]]            … 表示用の縮小版を出し、押すと元画像を lightbox で開く（同じページの画像は一つの組）
-  ![[絵.png|300]]        … 幅 300（Obsidian と同じ）。![[絵.png|300x200]] は幅と高さ
+  ![[絵.png|300]]        … 幅 300（Obsidian と同じ）。![[絵.png|300x200]] は幅と高さ、![[絵.png|x120]] は高さだけ（並べた絵の高さを揃える）
   ![[絵.png|説明]]       … 数字でない部分は alt と lightbox の題
   ![[曲.mp3]] / ![[動.mp4]] … <audio controls> / <video controls>
 
@@ -29,7 +29,7 @@ THUMB_EXTS = {".png", ".jpg", ".jpeg", ".webp"}  # gif は動くかもしれず 
 AUDIO_EXTS = {".mp3", ".m4a", ".ogg", ".wav", ".flac"}
 VIDEO_EXTS = {".mp4", ".webm", ".mov"}
 THUMB_SUFFIX = ".thumb.webp"
-SIZE_RE = re.compile(r"^(\d+)(?:x(\d+))?$")
+SIZE_RE = re.compile(r"^(\d*)(?:x(\d+))?$")  # 300 ／ 300x200 ／ x120（高さだけ）
 
 
 @dataclass(frozen=True)
@@ -65,13 +65,13 @@ class Embed:
 
 
 def parse_embed(inner: str) -> Embed:
-    """![[ ]] の中身。| で区切り、数字（幅か 幅x高さ）は大きさ、それ以外は alt。"""
+    """![[ ]] の中身。| で区切り、数字（幅・幅x高さ・x高さ）は大きさ、それ以外は alt。"""
     parts = [p.strip() for p in inner.split("|")]
     target = parts[0]
     alt = width = height = ""
     for p in parts[1:]:
         m = SIZE_RE.match(p)
-        if m:
+        if m and (m.group(1) or m.group(2)):
             width, height = m.group(1), m.group(2) or ""
         elif p:
             alt = p
