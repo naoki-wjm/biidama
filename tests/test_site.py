@@ -222,3 +222,80 @@ def test_recent_config_values(tmp_path):
     cfgp.write_text("vault: ./v\nsite:\n  recent: -1\n", encoding="utf-8")
     with pytest.raises(BuildError, match="site.recent"):
         load_config(cfgp)
+
+
+LINKED = "---\npublish: true\ncreated: 2026-01-01\n---\n"
+
+
+def test_sitemap_and_rss_need_site_url(tmp_path):
+    files = {"index.md": PUB + "入口", "雑記/a.md": PUB + "本文 & 記号"}
+    cfg, _ = run(tmp_path, files)
+    assert not (cfg.out / "sitemap.xml").exists() and not (cfg.out / "rss.xml").exists()
+    assert "rss.xml" not in read(cfg, "index.html")
+
+    cfg, res = run(tmp_path, files, url="https://example.com/")
+    sitemap = read(cfg, "sitemap.xml")
+    assert "<loc>https://example.com/雑記/a.html</loc>" in sitemap
+    assert "<loc>https://example.com/雑記.html</loc>" in sitemap  # フォルダ索引も
+    assert "<loc>https://example.com/最近の更新.html</loc>" in sitemap  # 生成した一覧も
+    assert "<lastmod>2026-01-01</lastmod>" in sitemap
+    rss = read(cfg, "rss.xml")
+    assert '<atom:link href="https://example.com/rss.xml" rel="self"' in rss
+    assert "<link>https://example.com/雑記/a.html</link>" in rss
+    assert "<description>本文 &amp; 記号</description>" in rss  # XML の記号は逃がす
+    assert "<pubDate>Thu, 01 Jan 2026 00:00:00 +0000</pubDate>" in rss
+    assert "index.html</link>" not in rss  # トップは「最近の更新」に入れないので RSS にも入れない
+    page = read(cfg, "雑記/a.html")
+    assert '<link rel="alternate" type="application/rss+xml" title="t の最近の更新" href="../rss.xml">' in page
+    assert 'href="../rss.xml">RSS</a>' in page
+
+
+def test_rss_follows_recent_setting(tmp_path):
+    files = {"index.md": PUB + "入口", "a.md": PUB + "a"}
+    cfg, _ = run(tmp_path, files, url="https://example.com/", recent=0)
+    assert not (cfg.out / "rss.xml").exists() and (cfg.out / "sitemap.xml").exists()
+
+
+def test_backlinks_only_in_named_folders(tmp_path):
+    files = {
+        "index.md": PUB + "入口 [[記事]] [[話]]",
+        "雑記/記事.md": PUB + "[[話]] と [[話]]（同じ先を二度）と [[記事]]（自分）",
+        "雑記/別.md": PUB + "[[記事]]",
+        "雑記/index.md": PUB + "目次 [[記事]]",  # フォルダの顔ページ＝パンくずに出るので数えない
+        "小説/話.md": PUB + "[[記事]]",
+    }
+    cfg, _ = run(tmp_path, files, backlinks=["雑記"])
+    page = read(cfg, "雑記/記事.html")
+    assert "このページに触れているページ" in page
+    # 題の順（index・別・話）。自分へのリンクは数えない
+    i = page.index("backlinks")
+    assert page.index('href="../index.html">index</a>', i) < page.index('href="別.html">別</a>', i) < page.index('href="../小説/話.html">話</a>', i)
+    assert page.count("<li>", i, page.index("</section>", i)) == 3
+    # 指名フォルダの外（小説）には出さない。指名フォルダでも触れられていなければ出さない
+    assert "このページに触れているページ" not in read(cfg, "小説/話.html")
+    assert "このページに触れているページ" not in read(cfg, "雑記/別.html")
+    # 指名が無ければどこにも出ない
+    cfg, _ = run(tmp_path, files)
+    assert "このページに触れているページ" not in read(cfg, "雑記/記事.html")
+
+
+def test_random_list_and_footer(tmp_path):
+    files = {"index.md": PUB + "入口", "雑記/a b.md": PUB + "a", "小説/話.md": PUB + "b"}
+    cfg, _ = run(tmp_path, files, random=["雑記"])
+    assert __import__("json").loads(read(cfg, "random.json")) == ["雑記/a%20b.html"]
+    assert 'href="../random.json" hidden>どこかのページへ</a>' in read(cfg, "小説/話.html")
+    # 指名フォルダに一枚も無ければ、押しものも一覧も無し
+    cfg, _ = run(tmp_path, files, random=["無い"])
+    assert not (cfg.out / "random.json").exists() and "どこかのページへ" not in read(cfg, "index.html")
+
+
+def test_site_folder_settings_are_validated(tmp_path):
+    (tmp_path / "v").mkdir()
+    bad = tmp_path / "c.yml"
+    bad.write_text("vault: v\nsite:\n  backlinks: 3\n", encoding="utf-8")
+    with pytest.raises(BuildError):
+        load_config(bad)
+    ok = tmp_path / "ok.yml"
+    ok.write_text("vault: v\nsite:\n  backlinks: 雑記/\n  random: [wiki, '雑録']\n", encoding="utf-8")
+    cfg = load_config(ok)
+    assert cfg.site.backlinks == ["雑記"] and cfg.site.random == ["wiki", "雑録"]

@@ -18,6 +18,14 @@
 {{ body|safe }}
 </div>
 </article>
+{% if backlinks %}
+<section class="backlinks">
+<h2>このページに触れているページ</h2>
+<ul>
+{% for b in backlinks %}<li><a href="{{ b.href }}">{{ b.title }}</a></li>
+{% endfor %}</ul>
+</section>
+{% endif %}
 {{ recent_section(recent, recent_more) }}
 {% if prev or next %}
 <nav class="series-nav" aria-label="前後のページ">

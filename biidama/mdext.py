@@ -40,6 +40,7 @@ class RenderContext:
     page: Node | None = None
     title: str = ""
     seen_ids: set[str] = field(default_factory=set)
+    backlinks: dict[str, set[str]] = field(default_factory=dict)  # 解決できた wikilink の逆引き: 先の rel → 元の rel の集合
 
 
 INLINE_STASH_RE = re.compile(r"\x02klzzwxh:(\d+)\x03")  # inline 処理中の退避（\| や code span）
@@ -217,6 +218,8 @@ class WikiLinkInline(InlineProcessor):
             el.set("class", "unresolved-link")
             el.text = link.display
             return el, m.start(0), m.end(0)
+        if page is not None and target is not page and target.kind == "page" and page.kind == "page":
+            self.ctx.backlinks.setdefault(target.rel, set()).add(page.rel)
         el = etree.Element("a")
         el.set("href", relative_href(page.out_rel, target.out_rel, link.heading))
         el.set("class", "internal")

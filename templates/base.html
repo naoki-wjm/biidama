@@ -36,6 +36,9 @@
 {% if site.icon %}
 <link rel="icon" href="{{ root }}{{ site.icon }}?v={{ site.icon_v }}">
 {% endif %}
+{% if site.has_rss %}
+<link rel="alternate" type="application/rss+xml" title="{{ site.name }} の最近の更新" href="{{ root }}rss.xml">
+{% endif %}
 <link rel="stylesheet" href="{{ root }}static/style.css?v={{ assets.get('style.css', '') }}">
 <link rel="stylesheet" href="{{ root }}static/pygments.css?v={{ assets.get('pygments.css', '') }}">
 <script src="{{ root }}static/site.js?v={{ assets.get('site.js', '') }}"></script>
@@ -66,6 +69,12 @@
 {% endif %}
 {% if site.has_recent %}
 <a class="footer-recent" href="{{ root }}最近の更新.html">最近の更新</a>
+{% endif %}
+{% if site.has_rss %}
+<a class="footer-rss" href="{{ root }}rss.xml">RSS</a>
+{% endif %}
+{% if site.has_random %}
+<a class="footer-random" href="{{ root }}random.json" hidden>どこかのページへ</a>
 {% endif %}
 <span class="made-with">made with <a href="https://github.com/naoki-wjm/biidama" rel="noopener">biidama</a></span>
 </footer>

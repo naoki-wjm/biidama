@@ -1,4 +1,4 @@
-// biidama site.js — 読者の好み（テーマ・書体）と「上へ戻る」。依存なし。
+// biidama site.js — 読者の好み（テーマ・書体）と「上へ戻る」と「どこかのページへ」。依存なし。
 // head で同期に読む（defer にしない）: 最初の描画の前に <html> へ data-theme / data-font を付けて、
 // 白い画面が一瞬光るのを防ぐため。ボタンの組み立てだけは DOM ができてから。
 // 記憶は localStorage（biidama-theme: "light" | "dark" | 無し＝端末に従う／biidama-font: "mincho" | 無し＝ゴシック）。
@@ -104,6 +104,25 @@
       }
     }, { passive: true });
     check();
+
+    // どこかのページへ: フッターの押しもの（JS が無ければ隠れたまま）。href の random.json を読んで一枚選ぶ
+    var random = document.querySelector(".footer-random");
+    if (random && window.fetch) {
+      random.hidden = false;
+      random.addEventListener("click", function (e) {
+        e.preventDefault();
+        fetch(random.href).then(function (r) { return r.json(); }).then(function (list) {
+          var base = random.href.replace(/random\.json$/, "");
+          var here = location.href.split("#")[0];
+          var candidates = [];
+          for (var i = 0; i < list.length; i++) {
+            var url = new URL(list[i], base).href;
+            if (url !== here) candidates.push(url);
+          }
+          if (candidates.length) location.href = candidates[Math.floor(Math.random() * candidates.length)];
+        }).catch(function () { /* 読めなければ何もしない */ });
+      });
+    }
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);

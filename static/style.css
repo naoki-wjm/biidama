@@ -150,7 +150,9 @@ ruby rt { font-size: 0.5em; }
 .to-top { position: fixed; right: 1rem; bottom: 1.2rem; width: 2.6rem; height: 2.6rem; border-radius: 50%; background: var(--accent); color: var(--bg); text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; opacity: 0.85; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
 
 .site-footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
-.site-footer .footer-tags { margin-left: 1em; }
+.site-footer .footer-tags, .site-footer .footer-recent, .site-footer .footer-rss, .site-footer .footer-random { margin-left: 1em; }
+.backlinks { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.backlinks h2 { font-size: 1.1em; margin: 0 0 0.5em; }
 .site-footer .made-with { float: right; font-size: 0.75rem; }
 .site-footer .made-with a { color: var(--muted); }
 .breadcrumb-bottom + .site-footer { margin-top: 0.5rem; }

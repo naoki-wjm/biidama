@@ -15,6 +15,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from . import BuildError, __version__
 from .config import Config
+from .feeds import RANDOM_NAME, RSS_NAME, SITEMAP_NAME, in_folders, make_random, make_rss, make_sitemap
 from .features.media import MediaIndex
 from .features.series import compute_nav
 from .folders import FolderIndex, make_folder_indexes
@@ -232,6 +233,9 @@ def build(cfg: Config, *, log=print) -> BuildResult:
     # 一覧ページは site.recent 件に切り詰める（トップ側の件数が一覧に漏れないように）
     recent_page = RecentList(pages=recent.head(cfg.site.recent), dates=recent.dates) if recent and cfg.site.recent > 0 else None
     site["has_recent"] = recent_page is not None
+    site["has_rss"] = recent_page is not None and bool(site_url)  # RSS は「最近の更新」の列を絶対 URL で流す
+    random_json = make_random(pages, cfg.site.random)
+    site["has_random"] = random_json is not None
 
     check_out_dir(cfg)
 
@@ -262,15 +266,28 @@ def build(cfg: Config, *, log=print) -> BuildResult:
             return {"recent": [], "recent_more": None}
         return {"recent": recent_items(node, recent.head(cfg.site.recent_home)), "recent_more": link(node, recent_page)}
 
+    def backlink_items(node: Page) -> list[dict]:
+        """「このページに触れているページ」。site.backlinks のフォルダにあるページだけ、題の順で。
+        パンくずに出る親フォルダの顔ページ（目次からのリンク）は数えない（同じ行き先を二度出さない）。"""
+        if not in_folders(node.rel, cfg.site.backlinks):
+            return []
+        parts = node.rel.split("/")[:-1]
+        parents = {n.rel for i in range(len(parts)) if (n := folder_node.get("/".join(parts[: i + 1])))}
+        sources = sorted((page_by_rel[r] for r in ctx.backlinks.get(node.rel, ()) if r not in parents), key=lambda s: (s.title, s.rel))
+        return [{"title": s.title, "href": link(node, s)} for s in sources]
+
     # 失敗しうる変換をすべて先に済ませ、成功した時だけ旧出力を消して書き出す
+    # 本文は先に全部変換する（逆引きは全ページの wikilink を見てから決まる）
+    page_by_rel = {p.rel: p for p in pages}
+    bodies = {p.rel: render_body(md, ctx, p, p.title, p.body) for p in pages}
+    descriptions = {p.rel: str(p.frontmatter.get("description") or "").strip() or summarize(bodies[p.rel]) for p in pages}
     outputs: list[tuple[str, str]] = []
     for p in pages:
-        body_html = render_body(md, ctx, p, p.title, p.body)
         nav = navs[p.rel]
-        desc = str(p.frontmatter.get("description") or "").strip() or summarize(body_html)
         html = page_tpl.render(
-            **common(p, desc, "article"),
-            body=body_html,
+            **common(p, descriptions[p.rel], "article"),
+            body=bodies[p.rel],
+            backlinks=backlink_items(p),
             created=p.created.isoformat() if p.created else "",
             updated=updated[p.rel].isoformat() if updated[p.rel] and updated[p.rel] != p.created else "",
             tags=tag_links(p, p.tags),
@@ -319,6 +336,13 @@ def build(cfg: Config, *, log=print) -> BuildResult:
             pages=recent_items(recent_page, recent_page.pages),
         )
         outputs.append((recent_page.out_rel, html))
+    if site_url:
+        generated: list[Node] = [*tag_indexes, *([tag_list] if tag_list else []), *([recent_page] if recent_page else [])]
+        outputs.append((SITEMAP_NAME, make_sitemap(site_url, [*nodes, *generated], updated)))
+    if site["has_rss"]:
+        outputs.append((RSS_NAME, make_rss(cfg.site.name, site_url, recent_page.pages, recent_page.dates, descriptions)))
+    if random_json is not None:
+        outputs.append((RANDOM_NAME, random_json))
 
     # 失敗しうるものはここまでに全部済ませる: 生成物の衝突・範囲の検査、縮小版の生成（壊れた画像はここで止まる）
     check_outputs(outputs, cfg.out)

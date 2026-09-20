@@ -19,6 +19,8 @@ class SiteConfig:
     head_extra: list[str] = field(default_factory=list)  # head にそのまま入れる行（作者宣言など、道具に書きたくないもの）
     recent: int = 20  # 「最近の更新」一覧（最近の更新.html）の件数。0 なら作らない
     recent_home: int = 5  # トップページの末尾に出す件数。0 なら出さない
+    backlinks: list[str] = field(default_factory=list)  # 「このページに触れているページ」を出すフォルダ（保管庫ルートからの相対）。空なら出さない
+    random: list[str] = field(default_factory=list)  # 「どこかのページへ」の行き先にするフォルダ。空なら押しものも random.json も無し
 
 
 @dataclass
@@ -69,6 +71,15 @@ def load_config(path: str | Path) -> Config:
             raise BuildError(f"設定 site.{key} は 0 以上の整数で書いてください: {v!r}")
         return v
 
+    def folders(key: str) -> list[str]:
+        """保管庫の中のフォルダの列（exclude と同じ書き方）。文字列の列以外は断る。"""
+        v = site_raw.get(key) or []
+        if isinstance(v, str):
+            v = [v]
+        if not isinstance(v, list) or not all(isinstance(x, str) and x.strip() for x in v):
+            raise BuildError(f"設定 site.{key} はフォルダ名の列で書いてください: {v!r}")
+        return [x.strip().strip("/").replace("\\", "/") for x in v]
+
     site = SiteConfig(
         name=str(site_raw.get("name", "biidama")),
         url=str(site_raw.get("url", "")),
@@ -77,6 +88,8 @@ def load_config(path: str | Path) -> Config:
         head_extra=[str(x) for x in (site_raw.get("head_extra") or []) if str(x).strip()],
         recent=count("recent", 20),
         recent_home=count("recent_home", 5),
+        backlinks=folders("backlinks"),
+        random=folders("random"),
     )
     media = load_media(data.get("media"))
     return Config(vault=vault, out=out, state_dir=state_dir, exclude=exclude, site=site, media=media)

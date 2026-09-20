@@ -10,3 +10,7 @@ exclude:
 site:
   name: 見本サイト
   url: https://example.com/
+  backlinks:
+    - 雑記
+  random:
+    - 雑記
