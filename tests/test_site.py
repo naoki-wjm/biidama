@@ -235,13 +235,15 @@ def test_sitemap_and_rss_need_site_url(tmp_path):
 
     cfg, res = run(tmp_path, files, url="https://example.com/")
     sitemap = read(cfg, "sitemap.xml")
-    assert "<loc>https://example.com/雑記/a.html</loc>" in sitemap
-    assert "<loc>https://example.com/雑記.html</loc>" in sitemap  # フォルダ索引も
-    assert "<loc>https://example.com/最近の更新.html</loc>" in sitemap  # 生成した一覧も
+    from urllib.parse import quote
+
+    assert f"<loc>https://example.com/{quote('雑記/a.html')}</loc>" in sitemap  # 外に配る URL は percent-encoding
+    assert f"<loc>https://example.com/{quote('雑記.html')}</loc>" in sitemap  # フォルダ索引も
+    assert f"<loc>https://example.com/{quote('最近の更新.html')}</loc>" in sitemap  # 生成した一覧も
     assert "<lastmod>2026-01-01</lastmod>" in sitemap
     rss = read(cfg, "rss.xml")
     assert '<atom:link href="https://example.com/rss.xml" rel="self"' in rss
-    assert "<link>https://example.com/雑記/a.html</link>" in rss
+    assert f"<link>https://example.com/{quote('雑記/a.html')}</link>" in rss
     assert "<description>本文 &amp; 記号</description>" in rss  # XML の記号は逃がす
     assert "<pubDate>Thu, 01 Jan 2026 00:00:00 +0000</pubDate>" in rss
     assert "index.html</link>" not in rss  # トップは「最近の更新」に入れないので RSS にも入れない

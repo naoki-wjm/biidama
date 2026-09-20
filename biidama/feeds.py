@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 from email.utils import format_datetime
+from urllib.parse import quote
 from xml.sax.saxutils import escape
 
 from .links import Node, encode_href
@@ -20,7 +21,9 @@ RANDOM_NAME = "random.json"
 
 
 def absolute_url(site_url: str, out_rel: str) -> str:
-    return site_url + encode_href(out_rel)
+    """外に配る URL（sitemap・RSS）。サイト内の href と違い、日本語も含めて UTF-8 の percent-encoding にする
+    （Sitemaps の規約。元のパスから一度で作る＝encode_href 済みの文字列を重ねて符号化しない）。"""
+    return site_url + quote(out_rel, safe="/")
 
 
 def in_folders(rel: str, folders: list[str]) -> bool:

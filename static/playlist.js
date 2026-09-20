@@ -167,6 +167,7 @@
       var track = tracks[index];
       audio.src = track.src;
       audio.load();
+      seeking = false;
       titleEl.textContent = track.title;
       artistEl.textContent = track.artist;
       seekbar.value = "0";
@@ -273,6 +274,10 @@
     // シーク: つまみを動かしている間は表示だけ追従し、離した時（change）に再生位置を移す。
     // キーボードの矢印は input と change が同時に来るので、その場で移る
     seekbar.addEventListener("pointerdown", function () { seeking = true; });
+    // 値を変えずに離した時や操作が取り消された時は change が来ない。要素の外で離しても拾えるよう window で受ける
+    function endSeek() { seeking = false; }
+    window.addEventListener("pointerup", endSeek);
+    window.addEventListener("pointercancel", endSeek);
     seekbar.addEventListener("input", function () {
       if (!audio.duration || !isFinite(audio.duration)) return;
       timeCurrentEl.textContent = formatTime((seekbar.value / 1000) * audio.duration);

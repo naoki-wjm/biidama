@@ -73,12 +73,18 @@ def load_config(path: str | Path) -> Config:
 
     def folders(key: str) -> list[str]:
         """保管庫の中のフォルダの列（exclude と同じ書き方）。文字列の列以外は断る。"""
-        v = site_raw.get(key) or []
+        v = site_raw.get(key)
+        if v is None:
+            v = []
         if isinstance(v, str):
             v = [v]
         if not isinstance(v, list) or not all(isinstance(x, str) and x.strip() for x in v):
             raise BuildError(f"設定 site.{key} はフォルダ名の列で書いてください: {v!r}")
-        return [x.strip().strip("/").replace("\\", "/") for x in v]
+        out = [x.strip().replace("\\", "/").strip("/") for x in v]
+        for x in out:
+            if not x or any(seg in ("", ".", "..") for seg in x.split("/")):
+                raise BuildError(f"設定 site.{key} は保管庫の中のフォルダ名で書いてください（空・`.`・`..` は不可）: {v!r}")
+        return out
 
     site = SiteConfig(
         name=str(site_raw.get("name", "biidama")),

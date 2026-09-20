@@ -92,6 +92,17 @@ def inside_raw_anchor(md, data: str) -> bool:
     return depth > 0
 
 
+ANCHOR_TAG_RE = re.compile(r"<a[\s>]|<(/)a\s*>", re.I)
+
+
+def inside_raw_anchor_text(data: str, pos: int) -> bool:
+    """pos より前で、生 HTML の <a> が開いたまま閉じていないか（退避より先に走る処理用。タグは文字のまま data にある）。"""
+    depth = 0
+    for m in ANCHOR_TAG_RE.finditer(data, 0, pos):
+        depth = depth + 1 if m.group(1) is None else max(0, depth - 1)
+    return depth > 0
+
+
 # ---- inline ---------------------------------------------------------------
 
 TAG_OPEN_RE = re.compile(r"<(?:[A-Za-z/!?])")
@@ -154,6 +165,9 @@ class EmbedInline(InlineProcessor):
         inner = unstash(self.md, m.group(1))
         page = self.ctx.page
         where = f"{page.rel}.md" if page else "?"
+        if inside_raw_anchor_text(data, m.start(0)):
+            self.ctx.warnings.append(f"生 HTML の <a> の中の埋め込み ![[{inner}]] はそのまま残します（リンクの中にリンクは置けません）: {where}")
+            return f"![[{inner}]]", m.start(0), m.end(0)  # 文字として確定させる（中の [[ ]] を wikilink に拾わせない）
         media = self.ctx.media
         if media is None or media.root is None:
             raise BuildError(f"埋め込み ![[{inner}]] を使うには設定 media.dir（メディアのフォルダ）が要ります: {where}")
@@ -211,6 +225,10 @@ class WikiLinkInline(InlineProcessor):
             raise BuildError(f"ブロック参照 [[{inner}]] は未対応です: {where}")
         if not link.target:
             raise BuildError(f"同一ページ内リンク [[{inner}]] は未対応です: {where}")
+        if inside_raw_anchor_text(data, m.start(0)):
+            # リンクの中にリンクは置けない。表示名だけ残し、逆引きにも数えない
+            self.ctx.warnings.append(f"生 HTML の <a> の中の [[{inner}]] はリンクにしません（文字だけ残します）: {where}")
+            return link.display, m.start(0), m.end(0)
         target = self.ctx.index.resolve(link.target)
         if target is None:
             self.ctx.warnings.append(f"リンク先が公開ページにありません: {where} → [[{inner}]]")

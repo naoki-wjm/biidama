@@ -109,18 +109,32 @@
     var random = document.querySelector(".footer-random");
     if (random && window.fetch) {
       random.hidden = false;
+      var busy = false; // 連打しても fetch と移動は一回
+      // ページの同一性は origin と pathname で見る（クエリと # は除く）。percent 表記の大小や日本語の生表記は、
+      // 区切りごとに復号→再符号化して両側を同じ形に揃える（%2F のような区切りの符号は区切りごとに扱うので同一視しない）
+      function pageKey(url) {
+        var u = new URL(url, location.href);
+        var segs = u.pathname.split("/");
+        for (var i = 0; i < segs.length; i++) {
+          try { segs[i] = encodeURIComponent(decodeURIComponent(segs[i])); } catch (e) { /* 壊れた % はそのまま */ }
+        }
+        return u.origin + segs.join("/");
+      }
       random.addEventListener("click", function (e) {
         e.preventDefault();
+        if (busy) return;
+        busy = true;
         fetch(random.href).then(function (r) { return r.json(); }).then(function (list) {
           var base = random.href.replace(/random\.json$/, "");
-          var here = location.href.split("#")[0];
+          var here = pageKey(location.href);
           var candidates = [];
           for (var i = 0; i < list.length; i++) {
             var url = new URL(list[i], base).href;
-            if (url !== here) candidates.push(url);
+            if (pageKey(url) !== here) candidates.push(url);
           }
           if (candidates.length) location.href = candidates[Math.floor(Math.random() * candidates.length)];
-        }).catch(function () { /* 読めなければ何もしない */ });
+          else busy = false;
+        }).catch(function () { busy = false; /* 読めなければ何もしない */ });
       });
     }
   }
