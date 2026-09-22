@@ -129,6 +129,30 @@ ruby rt { font-size: 0.5em; }
 .callout > summary { cursor: pointer; }
 .callout-warning, .callout-caution, .callout-danger { background: var(--warning-bg); border-left-color: var(--warning-line); }
 
+/* ひと目で段（wiki 記事の先頭に置く、原稿側の生 HTML 三部品。Markdown は中に書けないので文字と <b>・<br> だけ）
+   カード: <div class="cards"><div class="card"><b>題</b><br>数行</div>…</div>   … 画面幅で 1〜2 列
+   流れ:   <div class="flow"><div class="step">一歩目</div>…</div>               … 矢印つき横並び。狭い画面では縦に落ちる
+   図:     <figure><svg viewBox="…">線は stroke="currentColor"</svg><figcaption>…</figcaption></figure> … 読者の画面色に追従 */
+.page-body .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.8rem; margin: 1.5em 0; }
+.page-body .card, .page-body .step { border: 1px solid var(--line); border-radius: 6px; padding: 0.6em 0.9em; line-height: 1.7; }
+.page-body .card > :first-child, .page-body .step > :first-child { margin-top: 0; }
+.page-body .card > :last-child, .page-body .step > :last-child { margin-bottom: 0; }
+/* 中に見出しを書いた時は本文の見出しの飾り（下線・左罫・印）を外して、太い一行にする */
+.page-body .card h3, .page-body .card h4, .page-body .card h5, .page-body .step h3, .page-body .step h4, .page-body .step h5 { font-size: 1rem; color: inherit; margin: 0 0 0.3em; padding: 0; border: 0; }
+.page-body .card h4::before, .page-body .card h5::before, .page-body .step h4::before, .page-body .step h5::before { content: none; }
+.page-body .flow { display: flex; align-items: stretch; gap: 0; margin: 1.5em 0; }
+.page-body .step { flex: 1 1 0; min-width: 0; }
+.page-body .step + .step { margin-left: 1.6rem; position: relative; }
+.page-body .step + .step::before { content: "→"; position: absolute; left: -1.6rem; width: 1.6rem; top: 50%; transform: translateY(-50%); text-align: center; color: var(--muted); }
+@media (max-width: 36rem) {
+  .page-body .flow { flex-direction: column; }
+  .page-body .step + .step { margin-left: 0; margin-top: 1.6rem; }
+  .page-body .step + .step::before { content: "↓"; left: 0; right: 0; width: auto; top: -1.6rem; height: 1.6rem; line-height: 1.6rem; transform: none; }
+}
+.page-body figure { margin: 1.5em 0; text-align: center; }
+.page-body figure svg { max-width: 100%; height: auto; color: var(--fg); } /* stroke="currentColor" の線がこの色になる */
+.page-body figcaption { color: var(--muted); font-size: 0.85rem; line-height: 1.6; margin-top: 0.4em; }
+
 /* 前後ナビ */
 .series-nav { display: flex; justify-content: space-between; gap: 1rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .series-nav > div { flex: 1; }
