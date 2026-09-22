@@ -129,7 +129,7 @@ ruby rt { font-size: 0.5em; }
 .callout > summary { cursor: pointer; }
 .callout-warning, .callout-caution, .callout-danger { background: var(--warning-bg); border-left-color: var(--warning-line); }
 
-/* ひと目で段（wiki 記事の先頭に置く、原稿側の生 HTML 三部品。Markdown は中に書けないので文字と <b>・<br> だけ）
+/* 原稿に生 HTML で書く三部品（要点をひと目で示す段の材料。Markdown は中に書けないので文字と <b>・<br> だけ）
    カード: <div class="cards"><div class="card"><b>題</b><br>数行</div>…</div>   … 画面幅で 1〜2 列
    流れ:   <div class="flow"><div class="step">一歩目</div>…</div>               … 矢印つき横並び。狭い画面では縦に落ちる
    図:     <figure><svg viewBox="…">線は stroke="currentColor"</svg><figcaption>…</figcaption></figure> … 読者の画面色に追従 */
