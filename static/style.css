@@ -13,6 +13,7 @@
   --warning-bg: #fff6e5;
   --warning-line: #e0a040;
   --code-bg: #eff4f8;
+  --mark-bg: #fdf0a6;   /* ==文字== の印。蛍光ペンの黄 */
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -26,6 +27,7 @@
     --warning-bg: #332a1a;
     --warning-line: #b98430;
     --code-bg: #212a32;
+    --mark-bg: #5a4d10;
   }
 }
 :root[data-theme="dark"] {
@@ -40,6 +42,7 @@
   --warning-bg: #332a1a;
   --warning-line: #b98430;
   --code-bg: #212a32;
+  --mark-bg: #5a4d10;
 }
 :root[data-theme="light"] { color-scheme: light; }
 
@@ -115,6 +118,20 @@ a.tag:hover { color: var(--link); border-bottom-color: var(--link); }
 .page-body hr { border: 0; border-top: 1px solid var(--line); margin: 2em 0; }
 ruby rt { font-size: 0.5em; }
 .unresolved-link { border-bottom: 1px dotted var(--muted); }
+mark { background: var(--mark-bg); color: inherit; padding: 0 0.1em; border-radius: 2px; }
+
+/* 脚注（[^1] と [^1]: 中身）。番号は本文の肩、中身はページ末尾の一覧。
+   番号を押すと static/footnote.js がその場に中身を浮かべる（.footnote-pop。JS が無ければ一覧へ飛ぶ） */
+.page-body sup { line-height: 0; } /* 肩付きの文字で行の間隔を押し広げない */
+.footnote-ref { text-decoration: none; padding: 0.4em 0.3em; } /* 指で押せる広さ。行内の上下の余白は行の間隔を変えない */
+.footnote { margin-top: 3em; font-size: 0.9rem; line-height: 1.8; }
+.footnote ol { padding-left: 1.5em; }
+.footnote p { margin: 0 0 0.4em; }
+.footnote li:target { background: var(--callout-bg); } /* 番号から飛んできた注 */
+.footnote-backref { text-decoration: none; padding: 0 0.3em; }
+.footnote-pop { position: absolute; left: 0; top: 0; z-index: 100; box-sizing: border-box; max-width: min(24rem, calc(100vw - 16px)); padding: 0.6em 0.9em; background: var(--bg); color: var(--fg); border: 1px solid var(--accent); border-radius: 6px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); font-size: 0.9rem; line-height: 1.7; overflow-wrap: anywhere; }
+.footnote-pop p { margin: 0 0 0.5em; }
+.footnote-pop p:last-child { margin-bottom: 0; }
 
 /* Callout（曇り硝子） */
 .callout {

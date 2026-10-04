@@ -4,9 +4,11 @@
   pre:    コード枠の退避（superfences 25）→ 行頭の全角スペースを目印に逃がす（22）→ html ブロック退避（20）
   block:  見出しの regex を「# の後に空白必須」に差し替え（#タグ の行を見出しにしない）／引用を合流させない
   tree:   Callout（25）→ inline（20）→ 見出し id と H1 落とし（15）
-  inline: code span（190）→ エスケープ（180）→ 埋め込み（176）→ wikilink（175）
-          → 参照・リンク・画像（170〜150）→ 生 HTML 退避（90）→ 裸 URL（88）→ ルビ（85）→ nl2br（5）
-          埋め込み検出と wikilink は生 HTML 退避より先なので、タグや属性の中は inside_tag で自分で避ける
+  inline: code span（190）→ エスケープ（180）→ 埋め込み（176）→ wikilink・脚注の番号（175）
+          → 参照・リンク・画像（170〜150）→ 生 HTML 退避（90）→ 裸 URL（88）→ ルビ（85）→ ==ハイライト==（65）→ nl2br（5）
+          埋め込み検出・wikilink・脚注の番号は生 HTML 退避より先なので、タグや属性の中は inside_tag で自分で避ける
+  脚注（[^1] と [^1]: 中身）は同梱の footnotes、ハイライトは pymdownx.mark。どちらも部品を有効にするだけで、
+  ここで足すのは「タグの中の [^1] を避ける」「見出し id に番号を入れない」「呼ばれていない注の注意」の三つ
   post:   全角スペースの目印を戻す（5）。目印はページごとに原文に無い文字を選ぶ（40 の前処理で決める）
 """
 
@@ -19,6 +21,7 @@ from dataclasses import dataclass, field
 import markdown
 from markdown.blockprocessors import BlockQuoteProcessor
 from markdown.extensions import Extension
+from markdown.extensions.footnotes import FootnoteExtension
 from markdown.inlinepatterns import InlineProcessor
 from markdown.postprocessors import Postprocessor
 from markdown.preprocessors import Preprocessor
@@ -359,7 +362,7 @@ class HeadingTree(Treeprocessor):
     """本文先頭の H1 がタイトルと同文なら落とし、見出しに id を付ける。
 
     inline 処理の後に走るので、見出しの中の wikilink・強調・ルビは解決済み。
-    id にはルビの読み（rt）や括弧（rp）を含めず、退避された code span は中の文字だけ使う。
+    id にはルビの読み（rt）や括弧（rp）・脚注の番号を含めず、退避された code span は中の文字だけ使う。
     """
 
     def __init__(self, ctx: RenderContext, md):
@@ -370,7 +373,7 @@ class HeadingTree(Treeprocessor):
         parts: list[str] = []
 
         def walk(e):
-            if e.tag in ("rt", "rp"):
+            if e.tag in ("rt", "rp") or (e.tag == "sup" and e.get("id", "").startswith("fnref")):
                 return
             if e.text:
                 parts.append(e.text)
@@ -439,16 +442,24 @@ class BiidamaExtension(Extension):
         md.inlinePatterns.register(WikiLinkInline(self.ctx, md), "biidama_wikilink", 175)
         md.preprocessors.register(PickZenkakuMark(md), "biidama_zenkaku_mark", 40)
         md.inlinePatterns.register(AutoLinkInline(md), "biidama_autolink", 88)
+        # 脚注の番号 [^1] も生 HTML 退避より先に走るので、タグや属性の中は避ける（footnotes より後に登録されること）
+        footnote = md.inlinePatterns["footnote"]
+        footnote_match = footnote.handleMatch
+        footnote.handleMatch = lambda m, data: (None, None, None) if inside_tag(data, m.start(0)) else footnote_match(m, data)
         ruby.register(md)
         md.treeprocessors.register(CalloutTree(md), "biidama_callout", 25)
         md.treeprocessors.register(HeadingTree(self.ctx, md), "biidama_heading", 15)
 
 
 def make_markdown(ctx: RenderContext) -> markdown.Markdown:
-    return markdown.Markdown(
+    # 脚注: 番号は本文に出てきた順（Obsidian と同じ）。一覧はページ末尾、↩ で本文へ戻る
+    footnotes = FootnoteExtension(BACKLINK_TEXT="↩", BACKLINK_TITLE="本文の注 %d の場所へ戻る", USE_DEFINITION_ORDER=False)
+    md = markdown.Markdown(
         # sane_lists: 種類の違うリスト（- と 1.）を一つに溶かさない（Obsidian と同じ）
-        extensions=["tables", "nl2br", "sane_lists", "pymdownx.highlight", "pymdownx.superfences", BiidamaExtension(ctx)],
+        extensions=["tables", "nl2br", "sane_lists", footnotes, "pymdownx.mark", "pymdownx.highlight", "pymdownx.superfences", BiidamaExtension(ctx)],
         extension_configs={
+            # smart_mark は切る: 語の途中の == を印にしない仕組みだが、日本語は空白で区切らないので全部「語の途中」になる
+            "pymdownx.mark": {"smart_mark": False},
             # 色付けは Pygments（依存に固定）。色は static/pygments.css（ライト default・ダーク github-dark）。
             # 言語が無い・知らない言語のコード枠は色なしで、枠だけ同じ見た目
             "pymdownx.highlight": {"use_pygments": True, "css_class": "highlight", "guess_lang": False, "auto_title": True},  # auto_title: 言語名を枠の上に
@@ -456,6 +467,8 @@ def make_markdown(ctx: RenderContext) -> markdown.Markdown:
         },
         output_format="html",
     )
+    md.biidama_footnotes = footnotes
+    return md
 
 
 def render_body(md: markdown.Markdown, ctx: RenderContext, page: Node, title: str, body: str) -> str:
@@ -464,5 +477,8 @@ def render_body(md: markdown.Markdown, ctx: RenderContext, page: Node, title: st
     ctx.seen_ids = set()
     md.reset()
     html = md.convert(body)
+    for name in md.biidama_footnotes.footnotes:
+        if name not in md.biidama_footnotes.footnote_order:
+            ctx.warnings.append(f"本文から呼ばれていない注があります（一覧には出ますが ↩ の戻り先がありません）: {page.rel}.md → [^{name}]")
     # 言語の無いコード枠には札を付けない（auto_title は "Text Only" を付けてしまう）
     return html.replace('<div class="highlight"><span class="filename">Text Only</span>', '<div class="highlight">')

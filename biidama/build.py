@@ -132,12 +132,14 @@ def static_versions() -> dict[str, str]:
 
 
 _TAG_RE = re.compile(r"<[^>]+>")
+_FOOTNOTE_RE = re.compile(r'<sup id="fnref.*?</sup>|<div class="footnote">.*', re.S)  # 本文中の注の番号と、末尾の注の一覧
 _WS_RE = re.compile(r"\s+")
 
 
 def summarize(body_html: str, limit: int = 120) -> str:
-    """OGP の description 用。本文 HTML からタグを剥がして先頭だけ（frontmatter に description があればそちらを使う）。"""
-    text = _WS_RE.sub(" ", html_mod.unescape(_TAG_RE.sub("", body_html))).strip()
+    """OGP の description 用。本文 HTML からタグを剥がして先頭だけ（frontmatter に description があればそちらを使う）。
+    脚注の番号と一覧は説明文に混ぜない。"""
+    text = _WS_RE.sub(" ", html_mod.unescape(_TAG_RE.sub("", _FOOTNOTE_RE.sub("", body_html)))).strip()
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 

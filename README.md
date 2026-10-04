@@ -45,6 +45,8 @@ biidama publish -c config.local.yml             # 変わったファイルだけ
 - ルビは `|親《かな》`・`｜親《かな》`・`漢字《かな》`
 - Callout は Obsidian の `> [!note]`。折りたたみ `> [!warning]-` は `<details>` になります
 - 表の中の wikilink の縦棒は `\|`（Obsidian と同じ）
+- 脚注は本文に `[^1]`、中身は別の段落に `[^1]: 注の中身`（名前は数字でなくてもよく、番号は本文に出てきた順に振り直します）。中身はページ末尾の一覧に出て、番号を押すとその場にも浮かびます（`static/footnote.js`。JS が無ければ一覧へ飛び、↩ で戻ります）。中身の二段落目は四つの空白で字下げ。その場に書く形 `^[注]` は未対応で、文字のまま残ります。本文から呼ばれていない注があると注意を出します
+- ハイライトは `==文字==`（`<mark>` になります）。`a == b` のように内側が空白なら印になりません
 - 画像・音源・動画は保管庫の中のメディアのフォルダ（設定 `media.dir`。例 `メディア/`）に置き、`![[絵.png]]` で埋め込みます。`![[絵.png|300]]`・`![[絵.png|300x200]]`・`![[絵.png|x120]]`（高さだけ）は大きさ、`![[絵.png|説明]]` は alt と lightbox の題（Obsidian と同じ読み方。説明に `|` や `]]` は書けません。幅と高さの両方を書いても CSS が比率を守るので、実際に効くのは幅です）。同じページの画像は lightbox の一つの組になります。手書きの `<a data-lightbox><img></a>` もそのまま通ります
 - 縮小版は長辺 `media.thumbnail` px（既定 1200）までに縮めた WebP を `絵.png.thumb.webp` の名（元の名前＋`.thumb.webp`）で元画像の隣に出します（gif・svg は元のまま）。作った縮小版は `.biidama/thumbs/` に溜め、元が変わらなければ作り直しません。Pillow が無い時は注意を出して元画像をそのまま表示します
 
@@ -57,7 +59,7 @@ biidama/recent.py … 「最近の更新」の一覧（台帳の更新日で並�
 biidama/feeds.py  … sitemap.xml・rss.xml・random.json（どこかのページへ の行き先）
 biidama/features/ … 分離した機能（ruby・series・media）
 templates/        … jinja2 雛型（base・page・folder・tag・tags・recent・_recent＝トップ末尾の部品）
-static/           … 公開側の CSS（style.css・pygments.css）と site.js・lightbox.js・playlist.js。そのまま out/static/ に複製
+static/           … 公開側の CSS（style.css・pygments.css）と site.js・lightbox.js・playlist.js・footnote.js。そのまま out/static/ に複製
 tests/samples/    … 合成の試験片と期待 HTML（黄金テスト）
 tests/            … 止まるべき所で止まることの確認
 ```

@@ -105,6 +105,51 @@ def test_summarize_cuts_and_unescapes():
     assert summarize("<p>" + "あ" * 200 + "</p>", limit=10) == "あ" * 9 + "…"
 
 
+def test_footnotes(tmp_path):
+    body = (
+        "二つ目に定義した注[^b]を先に呼ぶ。次に[^a]。もう一度[^b]。中身の無い[^none]。\n\n"
+        "## 見出し[^a]\n\n"
+        '文中の <span title="[^a]">属性の中</span>。\n\n'
+        "[^a]: 注A\n[^b]: 注B は|注《ちゅう》\n[^c]: 呼ばれない注\n"
+    )
+    cfg, res = run(tmp_path, {"index.md": PUB + body})
+    html = read(cfg, "index.html")
+    # 番号は本文に出てきた順。同じ注を二度呼べば戻り先も二つ
+    assert '注<sup id="fnref:b"><a class="footnote-ref" href="#fn:b">1</a></sup>を先に呼ぶ' in html
+    assert '次に<sup id="fnref:a"><a class="footnote-ref" href="#fn:a">2</a></sup>' in html
+    assert html.index('<li id="fn:b">') < html.index('<li id="fn:a">')
+    assert 'href="#fnref:b" title="本文の注 1 の場所へ戻る">↩</a><a class="footnote-backref" href="#fnref2:b"' in html
+    assert "<ruby>注<rp>(</rp><rt>ちゅう</rt><rp>)</rp></ruby>" in html
+    # 中身の無い番号は文字のまま。見出しの id に番号は入らない。タグの属性の中は触らない
+    assert "中身の無い[^none]。" in html
+    assert '<h2 id="見出し">見出し<sup' in html
+    assert '<span title="[^a]">属性の中</span>' in html
+    # 説明文に番号も一覧も混ぜない
+    assert 'name="description" content="二つ目に定義した注を先に呼ぶ。次に。もう一度。中身の無い[^none]。 見出し 文中の 属性の中。"' in html
+    # 呼ばれていない注は一覧に出るが、注意を出す
+    assert '<li id="fn:c">' in html
+    assert len(res.warnings) == 1 and "[^c]" in res.warnings[0] and "index.md" in res.warnings[0]
+    assert "static/footnote.js?v=" in html
+
+
+def test_footnotes_reset_between_pages(tmp_path):
+    files = {"index.md": PUB + "入口[^1]\n\n[^1]: 入口の注", "a.md": PUB + "注の無いページ"}
+    cfg, res = run(tmp_path, files)
+    assert 'class="footnote"' in read(cfg, "index.html")
+    assert "footnote" not in read(cfg, "a.html").replace("footnote.js", "")
+    assert res.warnings == []
+
+
+def test_mark(tmp_path):
+    body = "これは==大事な|所《ところ》==です。a == b と c == d。`==x==`\n\n========\n"
+    cfg, _ = run(tmp_path, {"index.md": PUB + body})
+    html = read(cfg, "index.html")
+    # 日本語は語の切れ目に空白が無い。前後が文字でも印になる
+    assert "これは<mark>大事な<ruby>所<rp>(</rp><rt>ところ</rt><rp>)</rp></ruby></mark>です。" in html
+    assert "a == b と c == d。<code>==x==</code>" in html
+    assert "<p>========</p>" in html
+
+
 def test_pygments_colors_known_language_only(tmp_path):
     files = {"index.md": PUB + "```python\nprint(1)\n```\n\n```\nplain\n```\n\n```nosuchlang\nx\n```\n"}
     cfg, _ = run(tmp_path, files)
