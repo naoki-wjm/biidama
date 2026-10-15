@@ -5,9 +5,9 @@
   block:  見出しの regex を「# の後に空白必須」に差し替え（#タグ の行を見出しにしない）／引用を合流させない
   tree:   Callout（25）→ inline（20）→ 見出し id と H1 落とし（15）
   inline: code span（190）→ エスケープ（180）→ 埋め込み（176）→ wikilink・脚注の番号（175）
-          → 参照・リンク・画像（170〜150）→ 生 HTML 退避（90）→ 裸 URL（88）→ ルビ（85）→ ==ハイライト==（65）→ nl2br（5）
+          → 参照・リンク・画像（170〜150）→ 生 HTML 退避（90）→ 裸 URL（88）→ ルビ（85）→ ==ハイライト==（65）・~~打ち消し~~（65）→ nl2br（5）
           埋め込み検出・wikilink・脚注の番号は生 HTML 退避より先なので、タグや属性の中は inside_tag で自分で避ける
-  脚注（[^1] と [^1]: 中身）は同梱の footnotes、ハイライトは pymdownx.mark。どちらも部品を有効にするだけで、
+  脚注（[^1] と [^1]: 中身）は同梱の footnotes、ハイライトは pymdownx.mark、打ち消しは pymdownx.tilde。部品を有効にするだけで、
   ここで足すのは「タグの中の [^1] を避ける」「見出し id に番号を入れない」「呼ばれていない注の注意」の三つ
   post:   全角スペースの目印を戻す（5）。目印はページごとに原文に無い文字を選ぶ（40 の前処理で決める）
 """
@@ -456,10 +456,12 @@ def make_markdown(ctx: RenderContext) -> markdown.Markdown:
     footnotes = FootnoteExtension(BACKLINK_TEXT="↩", BACKLINK_TITLE="本文の注 %d の場所へ戻る", USE_DEFINITION_ORDER=False)
     md = markdown.Markdown(
         # sane_lists: 種類の違うリスト（- と 1.）を一つに溶かさない（Obsidian と同じ）
-        extensions=["tables", "nl2br", "sane_lists", footnotes, "pymdownx.mark", "pymdownx.highlight", "pymdownx.superfences", BiidamaExtension(ctx)],
+        extensions=["tables", "nl2br", "sane_lists", footnotes, "pymdownx.mark", "pymdownx.tilde", "pymdownx.highlight", "pymdownx.superfences", BiidamaExtension(ctx)],
         extension_configs={
             # smart_mark は切る: 語の途中の == を印にしない仕組みだが、日本語は空白で区切らないので全部「語の途中」になる
             "pymdownx.mark": {"smart_mark": False},
+            # 打ち消しは ~~ だけ（Obsidian と同じ）。一本の ~ の下付きは切る（「10~20」を巻き込まない）。smart は印と同じ理由で切る
+            "pymdownx.tilde": {"subscript": False, "smart_delete": False},
             # 色付けは Pygments（依存に固定）。色は static/pygments.css（ライト default・ダーク github-dark）。
             # 言語が無い・知らない言語のコード枠は色なしで、枠だけ同じ見た目
             "pymdownx.highlight": {"use_pygments": True, "css_class": "highlight", "guess_lang": False, "auto_title": True},  # auto_title: 言語名を枠の上に
