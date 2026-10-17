@@ -189,6 +189,35 @@ def test_render_file_keeps_playlist_block(tmp_path):
     assert "<br" not in html and "<p><div" not in html
 
 
+def test_list_right_after_paragraph(tmp_path):
+    # Obsidian と同じく、段落の直下の箇条書きは空行なしでも箇条書き（引用・Callout の中も）
+    src = tmp_path / "箇条.md"
+    src.write_text(
+        "---\ncreated: 2026-01-01\n---\n"
+        "本文\n- いち\n- に\n\n"
+        "> 前置き\n> - 引用の中\n\n"
+        "> [!note] 題\n> 1. 一\n> 2. 二\n\n"
+        "西暦\n2024. 年\n\n"
+        "- a\n続きの行\n- b\n\n"
+        "> 1. 親\n>    - 三字下げの子\n> 2. 次\n\n"
+        "- 親\n  - 二字下げの子\n\t- タブの孫\n\n"
+        "1. 番号\n続き\n * 記号に切り替わり\n\n"
+        "```\nコード\n- 文字のまま\n```\n",
+        encoding="utf-8",
+    )
+    html = render_file(src)
+    assert "<p>本文</p>\n<ul>\n<li>いち</li>" in html
+    assert "<p>前置き</p>\n<ul>\n<li>引用の中</li>" in html
+    assert '<p class="callout-title">題</p>\n<ol>\n<li>一</li>' in html
+    assert "<p>西暦<br>\n2024. 年</p>" in html  # 1 以外から始まる番号は段落を割らない
+    assert "<li>a<br>\n続きの行</li>\n<li>b</li>" in html  # 項目の続きの後には足さない
+    # 入れ子は親の文字の位置まで下げれば入れ子（python-markdown の 4 字に揃える）
+    assert "<li>親<ul>\n<li>三字下げの子</li>\n</ul>\n</li>\n<li>次</li>" in html
+    assert "<li>親<ul>\n<li>二字下げの子<ul>\n<li>タブの孫</li>" in html
+    assert "<li>番号<br>\n続き</li>\n</ol>\n<ul>\n<li>記号に切り替わり</li>" in html  # 番号つきと記号つきは別の箇条書き
+    assert "コード\n- 文字のまま\n</code>" in html
+
+
 def test_h1_dedupe_uses_filename(tmp_path):
     res = run(tmp_path, {"index.md": PUB + "ok", "題名.md": PUB + "# 題名\n\n本文\n\n# 別の見出し"})
     html = (res.pages[0].src.parent.parent / "out" / "題名.html").read_text(encoding="utf-8")

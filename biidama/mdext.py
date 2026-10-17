@@ -2,6 +2,7 @@
 
 処理の順番（python-markdown の優先度は大きいほど先）:
   pre:    コード枠の退避（superfences 25）→ 行頭の全角スペースを目印に逃がす（22）→ html ブロック退避（20）
+          → 箇条書きの形を直す（19＝段落の直下に空行・入れ子を 4 字刻みに）
   block:  見出しの regex を「# の後に空白必須」に差し替え（#タグ の行を見出しにしない）／引用を合流させない
   tree:   Callout（25）→ inline（20）→ 見出し id と H1 落とし（15）
   inline: code span（190）→ エスケープ（180）→ 埋め込み（176）→ wikilink・脚注の番号（175）
@@ -308,6 +309,90 @@ class KeepLeadingZenkakuSpace(Preprocessor):
         return LEADING_ZENKAKU_RE.sub(lambda m: m.group(1) + mark, "\n".join(lines)).split("\n")
 
 
+QUOTE_MARK_RE = re.compile(r"[ \t]{0,3}>[ \t]?")
+LIST_ITEM_RE = re.compile(r"(?P<mark>[-*+]|\d{1,9}[.)])(?P<gap>[ \t]+|$)")
+THEMATIC_BREAK_RE = re.compile(r"(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$")
+ATX_HEADING_RE = re.compile(r"#{1,6}(?:[ \t]|$)")
+
+
+def split_quote(line: str) -> tuple[int, str, str]:
+    """行頭の引用記号を数える。（深さ, 記号の部分, 残り）"""
+    depth, pos = 0, 0
+    while m := QUOTE_MARK_RE.match(line, pos):
+        depth, pos = depth + 1, m.end()
+    return depth, line[:pos], line[pos:]
+
+
+def indent_width(ws: str) -> int:
+    """字下げの幅（タブは 4 桁ごとの位置まで）。"""
+    col = 0
+    for c in ws:
+        col = (col // 4 + 1) * 4 if c == "\t" else col + 1
+    return col
+
+
+class ListShape(Preprocessor):
+    """箇条書きを Obsidian（CommonMark）の読み方に合わせて、python-markdown が分かる形に直す。
+
+    - 段落のすぐ下の行から始まる箇条書きの前に空行を一つ足す（python-markdown は段落の続きにしてしまう）。
+      番号つきは 1 から始まるものだけ・中身が空でないものだけ（CommonMark と同じ。「2024. 年」を巻き込まない）
+    - 入れ子の字下げを 4 字刻みに揃える。CommonMark は親の項目の文字の位置（`- ` なら 2・`1. ` なら 3）まで
+      下げれば入れ子だが、python-markdown は 4 字を要求するので、2・3 字下げの入れ子が文字のまま残る
+    引用・Callout の中も同じ深さの中で扱う。コード枠と生 HTML ブロックは先に退避されているので届かない。
+    """
+
+    def run(self, lines):
+        out = []
+        stack: list[int] = []  # 開いている項目の、文字の始まる桁（CommonMark の数え方）
+        kinds: list[bool] = []  # 同じ段の項目が番号つきか
+        prev_depth, prev_blank = 0, True
+        for line in lines:
+            depth, marks, rest = split_quote(line)
+            if depth != prev_depth:
+                stack, kinds, prev_blank = [], [], True
+            prev_depth = depth
+            if not rest.strip():
+                out.append(line)
+                prev_blank = True
+                continue
+            body = rest.lstrip(" \t")
+            col = indent_width(rest[: len(rest) - len(body)])
+            after_blank, prev_blank = prev_blank, False
+            if ATX_HEADING_RE.match(body) and (not stack or col < stack[-1]):
+                stack, kinds = [], []
+            item = LIST_ITEM_RE.match(body)
+            if item and not THEMATIC_BREAK_RE.match(body) and col < (stack[-1] if stack else 0) + 4:
+                if not stack and not after_blank:
+                    mark, text = item.group("mark"), body[item.end():]
+                    if not (mark in "-*+" or mark[:-1] == "1") or not text.strip():
+                        out.append(line)  # 段落の続き
+                        continue
+                    out.append(marks.rstrip())
+                ordered = item.group("mark")[0].isdigit()
+                sibling = None
+                while stack and col < stack[-1]:
+                    sibling = stack.pop()
+                    sibling_ordered = kinds.pop()
+                if sibling is not None and sibling_ordered != ordered and not after_blank:
+                    out.append(marks.rstrip())  # 番号つきと記号つきの切り替わりは別の箇条書き。空行が無いと前の項目の続きになる
+                gap = item.group("gap")
+                width = len(gap) if 1 <= len(gap) <= 4 and body[item.end():].strip() else 1
+                out.append(marks + " " * (4 * len(stack)) + body)
+                stack.append(col + len(item.group("mark")) + width)
+                kinds.append(ordered)
+                continue
+            if stack and after_blank:
+                # 空行の後は、親の文字の位置まで下げてあれば項目の中の次の段落。4 字刻みに揃える
+                while stack and col < stack[-1]:
+                    stack.pop()
+                    kinds.pop()
+                if stack:
+                    out.append(marks + " " * (4 * len(stack) + col - stack[-1]) + body)
+                    continue
+            out.append(line)  # 箇条書きの外か、項目の段落の続き（python-markdown も続きとして読む）
+        return out
+
+
 class RestoreZenkakuSpace(Postprocessor):
     def run(self, text):
         mark = getattr(self.md, "biidama_zenkaku_mark", None)
@@ -436,6 +521,8 @@ class BiidamaExtension(Extension):
         md.parser.blockprocessors.register(SeparateBlockQuotes(md.parser), "quote", 20)
         # superfences のコード退避（25）の後、html ブロック退避（20）の前
         md.preprocessors.register(KeepLeadingZenkakuSpace(md), "biidama_zenkaku", 22)
+        # html ブロック退避（20）の後。生 HTML の中に空行を足さない
+        md.preprocessors.register(ListShape(md), "biidama_list_shape", 19)
         md.postprocessors.register(RestoreZenkakuSpace(md), "biidama_zenkaku_restore", 5)
         # Markdown のリンク・参照（170〜150）やルビ（85）に食われる前に認識する。生 HTML の中は inside_tag で避ける
         md.inlinePatterns.register(EmbedInline(self.ctx, md), "biidama_embed", 176)
