@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biidama"
-version = "0.1.0"
+version = "0.3.0"
 description = "Obsidian の保管庫から publish: true のページだけを静的 HTML にする、自分用の生成器"
 readme = "README.md"
 license = "MIT"

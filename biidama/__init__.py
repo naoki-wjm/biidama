@@ -1,6 +1,6 @@
 """biidama — Obsidian の保管庫から公開ページだけを静的 HTML にする生成器。"""
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 
 class BuildError(Exception):
