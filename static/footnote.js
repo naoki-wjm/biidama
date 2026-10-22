@@ -29,7 +29,9 @@
       if (prev && prev.nodeType === 3) prev.nodeValue = prev.nodeValue.replace(/ $/, "");
       backs[k].parentNode.removeChild(backs[k]);
     }
-    document.body.appendChild(pop);
+    // 本文（.page-body）の中に置く。body 直下だと本文向けの CSS（画像の幅制限・コード枠の折り返し）が届かず、
+    // 大きな絵を含む注がページの横幅を押し広げる。.page-body は position を持たないので座標はページ基準のまま
+    (ref.closest(".page-body") || document.body).appendChild(pop);
 
     // 番号のすぐ下、左端を番号に合わせる。画面からはみ出すなら内側へ寄せ、下に入らなければ上へ
     var gap = 6;

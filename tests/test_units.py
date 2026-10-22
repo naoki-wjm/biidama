@@ -218,6 +218,29 @@ def test_list_right_after_paragraph(tmp_path):
     assert "コード\n- 文字のまま\n</code>" in html
 
 
+def test_list_item_blocks_after_blank(tmp_path):
+    # 空行の後に項目の中へ続く塊（段落・字下げコード）は塊ごと同じ幅だけずらす。Codex 第6回査読の指摘
+    src = tmp_path / "箇条.md"
+    src.write_text(
+        "---\ncreated: 2026-01-01\n---\n"
+        "- 親\n\n        def f():\n            return 1\n\n- 次\n\n"
+        "- 段落\n\n  子の段落\n- すぐ下の項目\n\n"
+        "- 段落\n\n  子の段落\n  - 子の箇条書き\n\n"
+        "`a\n- b`\n\n"
+        "区切り\n\n"
+        "- `one\n- two`\n",
+        encoding="utf-8",
+    )
+    html = render_file(src)
+    # CommonMark の読み: 項目の文字の位置（2）から 4 字下げで字下げコード、残りの 2 字はコードの中身
+    assert "<code>  def f():\n      return 1\n</code>" in html
+    assert "<p>子の段落</p>\n</li>\n<li>\n<p>すぐ下の項目</p>" in html  # 段落のすぐ下の項目は段落に吸われない
+    assert "<p>子の段落</p>\n<ul>\n<li>子の箇条書き</li>" in html
+    # ブロックの形が先（CommonMark 例「- `one / - two`」）。行をまたぐコードスパンは項目の行で割れる
+    assert "<p>`a</p>\n<ul>\n<li>b`</li>" in html
+    assert "<li>`one</li>\n<li>two`</li>" in html
+
+
 def test_h1_dedupe_uses_filename(tmp_path):
     res = run(tmp_path, {"index.md": PUB + "ok", "題名.md": PUB + "# 題名\n\n本文\n\n# 別の見出し"})
     html = (res.pages[0].src.parent.parent / "out" / "題名.html").read_text(encoding="utf-8")

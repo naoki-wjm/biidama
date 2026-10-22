@@ -338,18 +338,22 @@ class ListShape(Preprocessor):
       番号つきは 1 から始まるものだけ・中身が空でないものだけ（CommonMark と同じ。「2024. 年」を巻き込まない）
     - 入れ子の字下げを 4 字刻みに揃える。CommonMark は親の項目の文字の位置（`- ` なら 2・`1. ` なら 3）まで
       下げれば入れ子だが、python-markdown は 4 字を要求するので、2・3 字下げの入れ子が文字のまま残る
+    - 空行の後に項目の中へ続く段落・字下げコードは、空行までの塊ごと同じ幅だけずらす（コードの相対字下げを崩さない）。
+      その塊のすぐ下に来る項目の前には空行を足す（python-markdown はそこでも段落の続きにしてしまう）
     引用・Callout の中も同じ深さの中で扱う。コード枠と生 HTML ブロックは先に退避されているので届かない。
+    CommonMark と同じくブロックの形が先（行をまたぐコードスパンの途中に項目の行が来れば、そこで段落と箇条書きに割れる）。
     """
 
     def run(self, lines):
         out = []
         stack: list[int] = []  # 開いている項目の、文字の始まる桁（CommonMark の数え方）
         kinds: list[bool] = []  # 同じ段の項目が番号つきか
+        shift: int | None = None  # 空行の後に項目の中へ続いた塊に掛けている字下げの差。None なら塊の外
         prev_depth, prev_blank = 0, True
         for line in lines:
             depth, marks, rest = split_quote(line)
             if depth != prev_depth:
-                stack, kinds, prev_blank = [], [], True
+                stack, kinds, shift, prev_blank = [], [], None, True
             prev_depth = depth
             if not rest.strip():
                 out.append(line)
@@ -359,7 +363,7 @@ class ListShape(Preprocessor):
             col = indent_width(rest[: len(rest) - len(body)])
             after_blank, prev_blank = prev_blank, False
             if ATX_HEADING_RE.match(body) and (not stack or col < stack[-1]):
-                stack, kinds = [], []
+                stack, kinds, shift = [], [], None
             item = LIST_ITEM_RE.match(body)
             if item and not THEMATIC_BREAK_RE.match(body) and col < (stack[-1] if stack else 0) + 4:
                 if not stack and not after_blank:
@@ -368,6 +372,8 @@ class ListShape(Preprocessor):
                         out.append(line)  # 段落の続き
                         continue
                     out.append(marks.rstrip())
+                elif shift is not None and not after_blank:
+                    out.append(marks.rstrip())  # 項目の中の段落のすぐ下の項目。空行が無いと段落の続きになる
                 ordered = item.group("mark")[0].isdigit()
                 sibling = None
                 while stack and col < stack[-1]:
@@ -380,15 +386,17 @@ class ListShape(Preprocessor):
                 out.append(marks + " " * (4 * len(stack)) + body)
                 stack.append(col + len(item.group("mark")) + width)
                 kinds.append(ordered)
+                shift = None
                 continue
             if stack and after_blank:
-                # 空行の後は、親の文字の位置まで下げてあれば項目の中の次の段落。4 字刻みに揃える
+                # 空行の後は、親の文字の位置まで下げてあれば項目の中の次の段落（か字下げコード）。4 字刻みに揃える
                 while stack and col < stack[-1]:
                     stack.pop()
                     kinds.pop()
-                if stack:
-                    out.append(marks + " " * (4 * len(stack) + col - stack[-1]) + body)
-                    continue
+                shift = 4 * len(stack) - stack[-1] if stack else None
+            if shift is not None:
+                out.append(marks + " " * max(col + shift, 0) + body)  # 塊の続きも同じ幅だけずらす（コードの相対字下げを保つ）
+                continue
             out.append(line)  # 箇条書きの外か、項目の段落の続き（python-markdown も続きとして読む）
         return out
 

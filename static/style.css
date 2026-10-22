@@ -121,7 +121,7 @@ ruby rt { font-size: 0.5em; }
 mark { background: var(--mark-bg); color: inherit; padding: 0 0.1em; border-radius: 2px; }
 
 /* 脚注（[^1] と [^1]: 中身）。番号は本文の肩、中身はページ末尾の一覧。
-   番号を押すと static/footnote.js がその場に中身を浮かべる（.footnote-pop。JS が無ければ一覧へ飛ぶ） */
+   番号を押すと static/footnote.js がその場に中身を浮かべる（.footnote-pop。本文 .page-body の中に置かれるので画像の幅制限などは本文と同じ。JS が無ければ一覧へ飛ぶ） */
 .page-body sup { line-height: 0; } /* 肩付きの文字で行の間隔を押し広げない */
 .footnote-ref { text-decoration: none; padding: 0.4em 0.3em; } /* 指で押せる広さ。行内の上下の余白は行の間隔を変えない */
 .footnote { margin-top: 3em; font-size: 0.9rem; line-height: 1.8; }
